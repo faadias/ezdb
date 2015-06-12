@@ -36,7 +36,7 @@ Now, the next thing to do is create you DATABASE and the TABLES (stores) within 
 	        	key : { keyPath : "key", autoIncrement : true },
 	            indexes : [
 	                { name : "email", columns : "email", unique : true },
-	                { name : "person_id", columns : "person_id", unique : true }
+	                { name : "person_id", columns : "person_id", unique : false }
 	            ]
 	        }
 	    }
@@ -44,7 +44,7 @@ Now, the next thing to do is create you DATABASE and the TABLES (stores) within 
 	    database = db;
 	});
 
-In this example, we are creating a new database called "MyFirstDatabase" containg two tables named "person" and "email". Their "primary keys" are the columns "id" and "key", respectively. Those tables also have indexes, some unique, some not, which will be used for querying purposes.
+In this example, we are creating a new database called "MyFirstDatabase" containing two tables named "person" and "email". Their "primary keys" are the columns "id" and "key", respectively. Those tables also have indexes, some unique, some not, which will be used for querying purposes.
 
 Note: Just like a regular NoSQL database (like Cassandra), we do not specify all the columns in a table. This means that a "row" may vary from another in the number of attributes, even though they are in the same table. This will become more clear in future examples.
 
