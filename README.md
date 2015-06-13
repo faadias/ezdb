@@ -87,7 +87,7 @@ To insert a new record, all we need is a JSON object, like this:
 		lastname : "Doe",
 		age : 36,
 		gender : "M",
-		bithdate : new Date("Nov 22 1985"),
+		birthdate : new Date("Nov 22 1985"),
 		hobbies : ["frisbees","dogs", "computing", "reading"]
 	};
 	database.table("person").insert(person);
