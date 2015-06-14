@@ -590,6 +590,10 @@
 			throw "Not a valid lower and/or upper bound!";
 		}
 		
+		if (upperBound < lowerBound) {
+			throw "The upper bound should be greater than the lower bound!";
+		}
+		
 		if (self._count) {
 			throw "Since count was specified for this query, other options are not allowed!";
 		}
@@ -603,7 +607,7 @@
 			throw "The last two parameters of bounds should be booleans!";
 		}
 		
-		self._bounds = IDBKeyRange.upperBound(lowerBound, upperBound, excludeLower, excludeUpper);
+		self._bounds = IDBKeyRange.bound(lowerBound, upperBound, excludeLower, excludeUpper);
 		
 		return self;
 	}
