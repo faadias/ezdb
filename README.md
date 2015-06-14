@@ -88,7 +88,7 @@ To insert a new record, all we need is a JSON object, like this:
 		age : 36,
 		gender : "M",
 		birthdate : new Date("Nov 22 1985"),
-		hobbies : ["frisbees","dogs", "computing", "reading"]
+		hobbies : ["frisbees","dogs","computing","reading"]
 	};
 	database.table("person").insert(person);
 
@@ -122,7 +122,215 @@ In the above example, we are inserting a new email for John Doe, but since the t
 Note: even though we are inserting only ONE record and not an array of "emails", the resulting "keys" of the "then" method will always be an array.
 
 ## Querying
-TODO
+
+Now that we have some data in our database, how about querying it?
+
+Differently from insertion, a query comprises many possible options, like querying by index, present results in descending order etc. Because of that, it must be built before being executed:
+
+	database.table("person")
+		.query()
+		.equals(222)
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+
+The first thing we do is specify the table we are querying. When an index is not specified, the "equals" method will look up the record by its key (222, in our example). After specifying the parameters, we just run our query by calling the "go" method (yes, I am a Sybase user). The returned value is, as we are already used to, is a Promise. By calling its "then" method, we have access to an array of the query's results. In the above example, that is what we will get on the console: [{ id : 222, firstname : "Anne" , lastname : "Millard", age : 22, gender : "F" }].
+
+Note: even though a key is unique per record, the result of a query will always bring an array.
+
+Here is a list of possible configurations for your query, followed by a bunch of examples. Try to run some of them and see if you understand what is going on.
+
+- desc(): Retrieves the results in descendind order by key or by index, if one is specified. The default behaviour is asceding order;
+- distinct(): Retrieves only the records with distinct index value, i.e., if two records have the same value in the specified index column, only the one with the lowest key is returned; if an index is not specified, "distinct" has no effect;
+- first("number"): Retrieves only the first "number" records. Deafult is "0" for ALL records;
+- index("index_name"): Makes a query by the identified "index_name" and not by the key, which is the default behaviour;
+- keysonly(): Retrieves an array containg only the recods keys, not the entire record;
+- keyvalue(): Retrieves an array of the type key-value, where "key" is the primary key of the record and "value" is the value of the specified index column. For example, if "age" is specified as the query index, the returned object for "Anne" (see insertions above) is { key : 222, value : 22 }, since its age is 22.
+Note: "keyvalue" can only be used alongside an index.
+- count(): Retrieves the number of records in the database. "count" cannot go along other options.
+- filter("function"): Specifies a function to be used when retrieving values. Only the records for which "function" returns "true" will be considered. Within "function", you will have access to the record's json object (see examples below);
+- equals("value"): Retrieves only the results where the key (or the index, if specified) is equals to "value".
+- upperbound("bound", ["is_strict"]): Creates an upper bound of value "bound", meaning that only the records with a key (or an index, if specified) smaller or equal to "bound" will be retrieved. If the optional parameter "is_strict" is specified as "true", then only the records strictly smaller will be retrieved;
+- lowerbound("bound", ["is_strict"]): Creates a lower bound of value "bound", meaning that only the records with a key (or an index, if specified) greater or equal to "bound" will be retrieved. If the optional parameter "is_strict" is specified as "true", then only the records strictly greater will be retrieved;
+- bounds("lowerbound", "upperbound", ["is_strict_lowerbound"], ["is_strict_upperbound"]): A combination of the lowerbound and upperbound methods, meaning that a record's key (or index, if specified) should be in the interval ["lowerbound","upperbound"]. The optional "is_strict" parameters will determined whether the interval is closed or not.
+
+Examples:
+
+1. All records where age == 28 (results in ascending order as default):
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+		.equals(28)
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+2. All records in descending order by age:
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+	    .desc()
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+3. Unique records by age (when there is more than one record with the same age, only the one with the lowest key value is returned):
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+	    .distinct()
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+4. Order the records in descending order by age and retrieve only the first two records:
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+	    .desc()
+		.first(2)
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+5. Returns an array containg only the keys of all the records:
+
+	```javascript
+	database.table("person")
+		.query()
+	    .keysonly()
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+6. Returns an array of objects like this: { key : "primaryKey", value : "indexValue"}. Example when index is "age: { key : 222, value : 22}:
+Note: "keyvalue" can only be specified alongside an index.
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+	    .keyvalue()
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+	
+7. All records where age is less or equal to 36:
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+		.upperBound(36)
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+8. All records where age is less than 36:
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+		.upperBound(36, true)
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+9. Returns only the keys, in descending order by age, of all the records with age less than 36:
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+		.upperBound(36, true)
+	    .keysonly()
+	    .desc()
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+10. Returns only the records where age is greater or equal to 22 and strictly less than 36:
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+		.bounds(22, 36, false, true)
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+11. Counts the number of records in the database and retrieves a number:
+Note: "count" cannot be specified alongside other options.
+
+	```javascript
+	database.table("person")
+		.query()
+		.count()
+		.go()
+		.then(function(count) {
+			console.log(count);
+		});
+	```
+
+12. Returns all records where "firstname" starts with "A" or "lastname" starts with "M":
+
+	```javascript
+	database.table("person")
+		.query()
+		.filter(function filter(data) {
+			return data.firstname[0] === "A" || data.lastname[0] === "M";
+		})
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
+13. The same as the above example, except that only the keys are returned, not the entire record:
+
+	```javascript
+	database.table("person")
+		.query()
+		.keysonly()
+		.filter(function filter(data) {
+			return data.firstname[0] === "A" || data.lastname[0] === "M";
+		})
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+	```
+
 ## Updating a record
 TODO
 ## Deleting a record
