@@ -446,7 +446,7 @@
 		self._table = table;
 		self._asc = true;
 		self._distinct = false;
-		self._keysonly = false;
+		self._keysmode = "off";
 		self._count = false;
 		self._filter = null;
 		self._index = null;
@@ -491,18 +491,27 @@
 		return self;
 	}
 	
+	Query.prototype.keyvalue = function() {
+		var self = this;
+		if (self._count) {
+			throw "Since count was specified for this query, other options are not allowed!";
+		}
+		self._keysmode = "keyvalue";
+		return self;
+	}
+	
 	Query.prototype.keysonly = function() {
 		var self = this;
 		if (self._count) {
 			throw "Since count was specified for this query, other options are not allowed!";
 		}
-		self._keysonly = true;
+		self._keysmode = "keysonly";
 		return self;
 	}
 	
 	Query.prototype.count = function() {
 		var self = this;
-		if (!self._asc || self._distinct || self._keysonly || self._filter !== null || self._index !== null || self._bounds !== null || self._maxresults > 0) {
+		if (!self._asc || self._distinct || self._keysmode !== "off" || self._filter !== null || self._index !== null || self._bounds !== null || self._maxresults > 0) {
 			throw "Count can't be specified alongside other options!";
 		}
 		self._count = true;
@@ -611,9 +620,9 @@
 	Query.prototype.go = function() {
 		var self = this;
 		var promise;
-				
-		if (self._keysonly && self._index === null) {
-			throw "Keysonly option can only be chosen if an index is specified!";
+		
+		if (self._keysmode === "keyvalue" && self._index === null) {
+			throw "Keyvalue option can only be chosen if an index is specified!";
 		}
 		
 		if (self._count) {
@@ -648,11 +657,11 @@
 				var request = null;
 				
 				if (self._index === null) {
-					request = self._keysonly ? table.openKeyCursor(self._bounds, cursorType) : table.openCursor(self._bounds, cursorType);
+					request = table.openCursor(self._bounds, cursorType);
 				}
 				else {
 					var index = table.index(self._index);
-					request = self._keysonly ? index.openKeyCursor(self._bounds, cursorType) : index.openCursor(self._bounds, cursorType);
+					request = self._keysmode !== "off" && self._filter === null ? index.openKeyCursor(self._bounds, cursorType) : index.openCursor(self._bounds, cursorType); //the filter could make use of other attributes, fetched only in a normal cursor
 				}
 				
 				var results_counter = 0;
@@ -661,11 +670,16 @@
 					var cursor = e.target.result;
 					if (cursor && (self._maxresults === 0 || results_counter < self._maxresults)) {
 						if (self._filter === null || self._filter(cursor.value)) {
-							if (self._keysonly) {
+							switch (self._keysmode) {
+							case "keyvalue":
 								data.push({ key : cursor.primaryKey, value : cursor.key });
-							}
-							else {
+								break;
+							case "keysonly":
+								data.push(cursor.primaryKey);
+								break;
+							default:
 								data.push(cursor.value);
+								break;
 							}
 							
 							results_counter++;
