@@ -73,7 +73,6 @@ Here is a list of other useful methods of the database object:
 	database.close();				//Immediately closes this database, allowing you to update or drop it; while closed, it is not possible to use the database for querying etc
 	database.isClosed();			//Tells whether this database is closed or not; another way to test this is by calling 'ezdb.isClosed("databaseName")'
 	database.drop();				//Drops the entire database; this is only possible if the database is closed
-	
 
 OK, now that we know how to handle our database, how about inserting some data into our tables?
 
@@ -94,7 +93,7 @@ To insert a new record, all we need is a JSON object, like this:
 
 In the example above, we created a new person JSON object with some attributes, and inserted it in the table "person". It is important to note that since "id" is a non-autoincremental primary key, it is mandatory to inform its value.
 
-Notice also that the attributes "bithdate" and "hobbies" do not have indexes attached to them. This means they will be informational columns, not searchable ones, i.e., we will not be able to look up record by them, but they will be there.
+Notice also that the attributes "birthdate" and "hobbies" do not have indexes attached to them. This means they will be informational columns, not searchable ones, i.e., we will not be able to look up a record by them, but they will be there all the same.
 
 Well, sometimes we do not want to insert records one at a time. In these cases, all we have to do is provide an array of objects:
 
@@ -335,3 +334,11 @@ Note: "count" cannot be specified alongside other options.
 TODO
 ## Deleting a record
 TODO
+
+## Truncating a table
+
+In order to truncate a table and clear all of its records, just call:
+
+	database.table("person").truncate()
+
+This makes me realize that, generally, the simplest of commands is also the most damaging one...
