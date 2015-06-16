@@ -311,6 +311,7 @@ Note: "keyvalue" can only be specified alongside an index.
 		.then(function(count) {
 			console.log(count);
 		});
+	```
 
 13. Counts the number of records in the database where age is exclusively grater than 28 and retrieves the number:
 
@@ -324,6 +325,7 @@ Note: "keyvalue" can only be specified alongside an index.
 		.then(function(count) {
 			console.log(count);
 		});
+	```
 
 14. Returns all records where "firstname" starts with "A" or "lastname" starts with "M":
 
