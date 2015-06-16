@@ -450,7 +450,7 @@
 		self._count = false;
 		self._filter = null;
 		self._index = null;
-		self._bounds = null;
+		self._bounds = { upper : null, lower : null, upper_open : false, lower_open : false, equals : null };
 		self._maxresults = 0;
 	}
 	
@@ -540,6 +540,14 @@
 	Query.prototype.upperBound = function(upperBound, excludeValue) {
 		var self = this;
 		
+		if (self._bounds.equals !== null) {
+			throw "'Equals' already specified for this query. An upper bound is not allowed!";
+		}
+		
+		if (self._bounds.upper !== null) {
+			throw "Upper bound already specified!";
+		}
+		
 		if (upperBound == null) {
 			throw "Not a valid upper bound!";
 		}
@@ -551,13 +559,22 @@
 			throw "Second parameter of upperBound should be a boolean!";
 		}
 		
-		self._bounds = IDBKeyRange.upperBound(upperBound, excludeValue);
+		self._bounds.upper = upperBound;
+		self._bounds.upper_open = excludeValue;
 		
 		return self;
 	}
 	
 	Query.prototype.lowerBound = function(lowerBound, excludeValue) {
 		var self = this;
+		
+		if (self._bounds.equals !== null) {
+			throw "'Equals' already specified for this query. A lower bound is not allowed!";
+		}
+		
+		if (self._bounds.lower !== null) {
+			throw "Lower bound already specified!";
+		}
 		
 		if (lowerBound == null) {
 			throw "Not a valid lower bound!";
@@ -570,43 +587,24 @@
 			throw "Second parameter of lowerBound should be a boolean!";
 		}
 		
-		self._bounds = IDBKeyRange.lowerBound(lowerBound, excludeValue);
-		
-		return self;
-	}
-	
-	Query.prototype.bounds = function(lowerBound, upperBound, excludeLower, excludeUpper) {
-		var self = this;
-		
-		if (upperBound == null || lowerBound == null) {
-			throw "Not a valid lower and/or upper bound!";
-		}
-		
-		if (upperBound < lowerBound) {
-			throw "The upper bound should be greater than the lower bound!";
-		}
-		
-		if (excludeLower == null) {
-			excludeLower = false;
-		}
-		if (excludeUpper == null) {
-			excludeUpper = false;
-		}
-		if (typeof excludeLower !== "boolean" || typeof excludeUpper !== "boolean") {
-			throw "The last two parameters of bounds should be booleans!";
-		}
-		
-		self._bounds = IDBKeyRange.bound(lowerBound, upperBound, excludeLower, excludeUpper);
+		self._bounds.lower = lowerBound;
+		self._bounds.lower_open = excludeValue;
 		
 		return self;
 	}
 	
 	Query.prototype.equals = function(z) {
 		var self = this;
-		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
+		
+		if (self._bounds.equals !== null) {
+			throw "'Equals' already specified for this query!";
 		}
-		self._bounds = IDBKeyRange.only(z);
+		
+		if (self._bounds.lower !== null || self._bounds.upper !== null) {
+			throw "Lower and/or upper bounds already specified. The 'equals' option is not allowed!";
+		}
+		
+		self._bounds.equals = z;
 		return self;
 	}
 	
@@ -616,6 +614,28 @@
 		
 		if (self._keysmode === "keyvalue" && self._index === null) {
 			throw "Keyvalue option can only be chosen if an index is specified!";
+		}
+		
+		if (self._bounds.equals !== null) {
+			self._bounds = IDBKeyRange.only(self._bounds.equals);
+		}
+		else {
+			if (self._bounds.lower === null && self._bounds.upper === null) {
+				self._bounds = null
+			}
+			else {
+				if (self._bounds.lower !== null) {
+					if (self._bounds.upper !== null) {
+						 self._bounds = IDBKeyRange.bound(self._bounds.lower, self._bounds.upper, self._bounds.lower_open, self._bounds.upper_open);
+					}
+					else {
+						self._bounds = IDBKeyRange.lowerBound(self._bounds.lower, self._bounds.lower_open);
+					}
+				}
+				else { //self._bounds.upper !== null
+					self._bounds = IDBKeyRange.upperBound(self._bounds.upper, self._bounds.upper_open);
+				}
+			}
 		}
 		
 		if (self._count) {
@@ -1215,4 +1235,5 @@
 	window.ezdb = new DBManager();
 	
 }) (window);
+
 
