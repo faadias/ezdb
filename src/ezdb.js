@@ -1,5 +1,5 @@
 /* EZDB - Yet Another Wrapper for IndexedDB
- * Version 1.00
+ * Version 1.0.0
  * 
  * Copyright (c) 2015 Felipe Dias, Twitter: @faadias1
  * 
@@ -457,7 +457,7 @@
 	Query.prototype.desc = function() {
 		var self = this;
 		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
+			throw "Since count was specified for this query, 'desc' option is not allowed!";
 		}
 		self._asc = false;
 		return self;
@@ -466,7 +466,7 @@
 	Query.prototype.distinct = function() {
 		var self = this;
 		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
+			throw "Since count was specified for this query, 'distinct' option is not allowed!";
 		}
 		self._distinct = true;
 		return self;
@@ -476,7 +476,7 @@
 		var self = this;
 		
 		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
+			throw "Since count was specified for this query, 'first' option is not allowed!";
 		}
 		
 		if (maxresults == null) {
@@ -494,7 +494,7 @@
 	Query.prototype.keyvalue = function() {
 		var self = this;
 		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
+			throw "Since count was specified for this query, 'keyvalue' option is not allowed!";
 		}
 		self._keysmode = "keyvalue";
 		return self;
@@ -503,7 +503,7 @@
 	Query.prototype.keysonly = function() {
 		var self = this;
 		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
+			throw "Since count was specified for this query, 'keysonly' option is not allowed!";
 		}
 		self._keysmode = "keysonly";
 		return self;
@@ -511,8 +511,8 @@
 	
 	Query.prototype.count = function() {
 		var self = this;
-		if (!self._asc || self._distinct || self._keysmode !== "off" || self._filter !== null || self._index !== null || self._bounds !== null || self._maxresults > 0) {
-			throw "Count can't be specified alongside other options!";
+		if (!self._asc || self._distinct || self._keysmode !== "off" || self._filter !== null || self._maxresults > 0) {
+			throw "Count cannot be specified alongside some of the chosen options!";
 		}
 		self._count = true;
 		return self;
@@ -521,7 +521,7 @@
 	Query.prototype.filter = function(filter) {
 		var self = this;
 		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
+			throw "Since count was specified for this query, 'filter' option is not allowed!";
 		}
 		if (typeof filter !== "function") {
 			throw "The supplied filter should be a function!";
@@ -532,9 +532,7 @@
 	
 	Query.prototype.index = function(indexName) {
 		var self = this;
-		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
-		}
+		
 		self._index = indexName;
 		return self;
 	}
@@ -546,9 +544,6 @@
 			throw "Not a valid upper bound!";
 		}
 		
-		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
-		}
 		if (excludeValue == null) {
 			excludeValue = false;
 		}
@@ -568,9 +563,6 @@
 			throw "Not a valid lower bound!";
 		}
 		
-		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
-		}
 		if (excludeValue == null) {
 			excludeValue = false;
 		}
@@ -594,9 +586,6 @@
 			throw "The upper bound should be greater than the lower bound!";
 		}
 		
-		if (self._count) {
-			throw "Since count was specified for this query, other options are not allowed!";
-		}
 		if (excludeLower == null) {
 			excludeLower = false;
 		}
@@ -633,7 +622,16 @@
 			promise = new Promise(function(resolve, reject) {
 				var transaction = self._db.transaction([self._table._name], self._table._dmlCounter > 0 ? READWRITE : READONLY);
 				var table = transaction.objectStore(self._table._name);
-				var request = table.count();
+				var request = null;
+				
+				if (self._index === null) {
+					request = table.count(self._bounds);
+				}
+				else {
+					var index = table.index(self._index);
+					request = index.count(self._bounds);
+				}
+				
 				request.onsuccess = function(e) {
 					resolve(e.target.result);
 				}
@@ -1217,3 +1215,4 @@
 	window.ezdb = new DBManager();
 	
 }) (window);
+
