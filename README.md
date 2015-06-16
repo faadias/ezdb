@@ -72,7 +72,7 @@ Here is a list of other useful methods of the database object:
 	database.table("tableName");	//Retrieves a Table object for querying, inserting, deleting and updating purposes (see the topics below for usage examples)
 	database.close();				//Immediately closes this database, allowing you to update or drop it; while closed, it is not possible to use the database for querying etc
 	database.isClosed();			//Tells whether this database is closed or not; another way to test this is by calling 'ezdb.isClosed("databaseName")'
-	database.drop();				//Drops the entire database; this is only possible if the database is closed
+	database.drop();				//Drops the entire database; this is only possible if the database is closed. Example: database.close().drop().
 
 OK, now that we know how to handle our database, how about inserting some data into our tables?
 
@@ -147,12 +147,11 @@ Here is a list of possible configurations for your query, followed by a bunch of
 - keysonly(): Retrieves an array containg only the recods keys, not the entire record;
 - keyvalue(): Retrieves an array of the type key-value, where "key" is the primary key of the record and "value" is the value of the specified index column. For example, if "age" is specified as the query index, the returned object for "Anne" (see insertions above) is { key : 222, value : 22 }, since its age is 22.
 Note: "keyvalue" can only be used alongside an index.
-- count(): Retrieves the number of records in the database. "count" cannot go along other options.
+- count(): Retrieves the number of records in the database. "count" can only go alone or alongside index and/or bounding options.
 - filter("function"): Specifies a function to be used when retrieving values. Only the records for which "function" returns "true" will be considered. Within "function", you will have access to the record's json object (see examples below);
 - equals("value"): Retrieves only the results where the key (or the index, if specified) is equals to "value".
 - upperbound("bound", ["is_strict"]): Creates an upper bound of value "bound", meaning that only the records with a key (or an index, if specified) smaller or equal to "bound" will be retrieved. If the optional parameter "is_strict" is specified as "true", then only the records strictly smaller will be retrieved;
-- lowerbound("bound", ["is_strict"]): Creates a lower bound of value "bound", meaning that only the records with a key (or an index, if specified) greater or equal to "bound" will be retrieved. If the optional parameter "is_strict" is specified as "true", then only the records strictly greater will be retrieved;
-- bounds("lowerbound", "upperbound", ["is_strict_lowerbound"], ["is_strict_upperbound"]): A combination of the lowerbound and upperbound methods, meaning that a record's key (or index, if specified) should be in the interval ["lowerbound","upperbound"]. The optional "is_strict" parameters will determined whether the interval is closed or not.
+- lowerbound("bound", ["is_strict"]): Creates a lower bound of value "bound", meaning that only the records with a key (or an index, if specified) greater or equal to "bound" will be retrieved. If the optional parameter "is_strict" is specified as "true", then only the records strictly greater will be retrieved.
 
 Examples:
 
@@ -281,15 +280,15 @@ Note: "keyvalue" can only be specified alongside an index.
 	database.table("person")
 		.query()
 		.index("age")
-		.bounds(22, 36, false, true)
+		.lowerBound(22)
+		.upperBound(36, true)
 		.go()
 		.then(function(results) {
 			console.log(results);
 		});
 	```
 
-11. Counts the number of records in the database and retrieves a number:
-Note: "count" cannot be specified alongside other options.
+11. Counts the number of records in the database and retrieves the number:
 
 	```javascript
 	database.table("person")
@@ -301,7 +300,32 @@ Note: "count" cannot be specified alongside other options.
 		});
 	```
 
-12. Returns all records where "firstname" starts with "A" or "lastname" starts with "M":
+12. Counts the number of records in the database where the key equals 222 and retrieves the number:
+
+	```javascript
+	database.table("person")
+		.query()
+		.equals(222)
+		.count()
+		.go()
+		.then(function(count) {
+			console.log(count);
+		});
+
+13. Counts the number of records in the database where age is exclusively grater than 28 and retrieves the number:
+
+	```javascript
+	database.table("person")
+		.query()
+		.index("age")
+		.lowerBound(28, true)
+		.count()
+		.go()
+		.then(function(count) {
+			console.log(count);
+		});
+
+14. Returns all records where "firstname" starts with "A" or "lastname" starts with "M":
 
 	```javascript
 	database.table("person")
@@ -315,7 +339,7 @@ Note: "count" cannot be specified alongside other options.
 		});
 	```
 
-13. The same as the above example, except that only the keys are returned, not the entire record:
+15. The same as the above example, except that only the keys are returned, not the entire record:
 
 	```javascript
 	database.table("person")
