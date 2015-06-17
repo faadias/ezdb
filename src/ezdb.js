@@ -884,7 +884,10 @@
 						}
 						else { //json
 							for(var key in self._del) {
-								if (self._del[key] === true || ( typeof self._del[key] === "function" && self._del[key](updateData) )) {
+								var getter = function(key) {
+									return updateData[key];
+								};
+								if (self._del[key] === true || ( typeof self._del[key] === "function" && self._del[key](getter) )) {
 									delete updateData[key];
 								}
 							}
