@@ -357,9 +357,138 @@ Note: "keyvalue" can only be specified alongside an index.
 	```
 
 ## Updating a record
-TODO
+
+Imagine taht one year has passed and Mary Kovacs is now 67 years old. How do we change tha "age" value for her in our records? The syntax resembles the one used for insertion:
+
+	database.table("person")
+		.update({
+			id : 562,
+			firstname : "Mary",
+			lastname : "Kovacs",
+			age : 67,			//This value will be changed to 67
+			gender : "F"
+		}).then(function(keys){
+			console.log(keys)
+		});
+
+Again, the result of the update call is a Promise, which will always return an array with the affected keys. And yes, you can pass an array of objects to the update method, just like in insert. Just remember that this will happen within a transaction, if an error is to be thrown for ANY record, NONE will be updated.
+
+Now, wait a minute, if I only want to change her age, why do I need to put all the other attributes in the JSON object? Because "update" considers the whole thing! If you do not specify the other attributes, they will be completely erased! Notice that they will not become "null", they will just disappear.
+
+We have learned that, ehen using update, it is mandatory to specify all the fields, including its primary key. So, in the case of our table "email", you would have to query it first in order to find out the generated primary key for a given record (or just save it somewhere in the "then" method after inserting it).
+
+In a later section, we will learn how to perform more clever updates.
+
 ## Deleting a record
-TODO
+
+Deleting a record is just as easy as inserting or updating. The only difference is that we only need to pass the keys we want removed from the table and not the whole object. Say goodbye to Jean, because he is moving back to France:
+
+	database.table("person")
+		.delete(311)				//311 is Jean Fauchelevent's id
+		.then(function(keys) {
+			console.log(keys);
+		});
+
+As usual, the result of the delete call is also a Promise with an array of the deleted keys.
+
+Just like insert and update, the delete method will accept an array of keys to be deleted. Just remember that this will happen within a transaction, if an error is to be thrown for ANY record, NONE will be removed.
+
+## Advanced updates
+
+OK, imagine a scenario where I do not have all the information about a record, I only know WHAT has to be changed and in WHICH circumstances. In our previou update example, I said that a year had passed, but why only Mary Kovacs got older? Everybody's age should have been incremented by one, right? This is how we do it:
+
+	database.table("person")
+		.update()
+		.set({
+            age : function(getter) {
+			    return getter("age") + 1;
+            }
+		})
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+
+As you might be getting tired already, yes, the returned value of this update call is also a Promise, which will bring up an array of the affected keys.
+
+Now, let us break down the code into pieces for a better understading, shall we?
+
+First, we call the table's update method just like before, except that this time it does not have any parameters. Then, we specify what we want to "set" (in our example, it is the attribute "age"). We could have used a fixed number, but then everybody would have been updated to the same age. No, what we wanted was to increase the person's previous age by one, so we pass a function that will have access to all of the record's attributes and will decide which changes should be made. Notice that the access to the attributes is made by a "getter" function, so that the actual object is not exposed. You cal call "getter" with any of the records attribute.
+
+After specifying what we want to "set", our "update" is configured and can be executed. To do that, we just call its "go" method, just like we did with queries.
+
+This kind of update can also be used alongside indexes and boundings. You can use the same syntax used for queries, as shown below:
+
+1. Sets everybody who is 28 years to an age of 56 and a masculine gender:
+
+	```javascript
+	database.table("person")
+		.update()
+		.index("age")
+	    .equals(28)
+		.set({age : 56, gender : "M"})
+		.go()
+		.then(function(keys) {
+			console.log(keys); //logs an array of the affected records' keys
+		});
+	```
+2. You can also ERASE an attribute (instead of setting it to null). In the following example, we remove the "gender" attribute for everyone who is at most 24 years old (exclusively):
+
+	```javascript
+	database.table("person")
+		.update()
+		.index("age")
+	    .upperBound(24, true)
+		.del(["gender"])
+		.go()
+	```
+
+3. When removing an attribute, you can pass a function that returns a boolean and decides whether the attribute should be erased or not. Or you could specify the an attribute should be removed for everybody:
+
+	```javascript
+	database.table("person")
+		.update()
+		.del({
+			gender : true,								//Removes the attribute "gender" for everybody
+			age : function(getter) {
+				return getter("firstname") === "Mary";	//Removes the attribute "age" for those whose first name is Mary
+			}
+		})
+		.go()
+	```
+
+4. The "del" method also accpets an array of attributes that should be erased:
+Note: the returned keys array in the Promise will contain all the keys, even those whose records did not have the removed attribute. This is because the entire table is traversed if an index or boundings are not specified.
+
+	```javascript
+	database.table("person")
+		.update()
+		.del(["hobbies","birthdate"])
+		.go()
+	```
+
+## Advanced deletes
+
+Very similitar to advanced updating and querying, I believe that at this point you will be able to figure out what the code below does:
+
+	database.table("person")
+		.delete()
+		.index("age")
+	    .equals(29)
+		.filter(function(getter){
+			return getter("firstname") === "Grace";
+		})
+		.go()
+		.then(function(results) {
+			console.log(results);
+		});
+
+If you think that this will only remove those records where age is 29 and first name is "Grace", then you guessed it right!
+
+The only important note here is that, differently from other Promises, this one will not return the records primary key only, but the whole record itself!
+
+## Transactions
+//TODO
 
 ## Truncating a table
 
@@ -368,3 +497,6 @@ In order to truncate a table and clear all of its records, just call:
 	database.table("person").truncate()
 
 This makes me realize that, generally, the simplest of commands is also the most damaging one...
+
+## Updating you database structure
+//TODO
