@@ -439,7 +439,7 @@ This kind of update can also be used alongside indexes and boundings. You can us
 		.update()
 		.index("age")
 	    .upperBound(24, true)
-		.del(["gender"])
+		.del("gender")
 		.go()
 	```
 
