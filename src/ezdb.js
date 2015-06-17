@@ -864,7 +864,11 @@
 					
 					for(var key in self._set) {
 						if (typeof self._set[key] === "function") {
-							self._set[key](updateData);
+							var getter = function(key) {
+								return updateData[key];
+							};
+							
+							updateData[key] = self._set[key](getter);
 						}
 						else {
 							updateData[key] = self._set[key];
