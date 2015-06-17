@@ -824,8 +824,12 @@
 	Update.prototype.del = function(del) {
 		var self = this;
 		
-		if (del == null || typeof del !== "object") {
-			throw "A set of deletions should be specified as an array of column names or a json!";
+		if (del == null) {
+			throw "A set of deletions should be specified either as a single column name, an array of column names or a json object!";
+		}
+		
+		if (typeof del !== "object" && Object.prototype.toString.call(del) !== "[object Array]") {
+			del = [del];
 		}
 		
 		self._del = del;
