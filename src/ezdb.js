@@ -1030,8 +1030,11 @@
 				var cursor = e.target.result;
 				if (cursor) {
 					var deleteData = cursor.value;
+					var getter = function(key) {
+						return deleteData[key];
+					};
 					
-					if (self._filter === null || self._filter(deleteData)) {
+					if (self._filter === null || self._filter(getter)) {
 						data.push(deleteData);
 						cursor.delete(deleteData);
 					}
