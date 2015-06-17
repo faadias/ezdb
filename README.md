@@ -375,9 +375,11 @@ Again, the result of the update call is a Promise, which will always return an a
 
 Now, wait a minute, if I only want to change her age, why do I need to put all the other attributes in the JSON object? Because "update" considers the whole thing! If you do not specify the other attributes, they will be completely erased! Notice that they will not become "null", they will just disappear.
 
-We have learned that, ehen using update, it is mandatory to specify all the fields, including its primary key. So, in the case of our table "email", you would have to query it first in order to find out the generated primary key for a given record (or just save it somewhere in the "then" method after inserting it).
+We have learned that, when using update, it is mandatory to specify all the fields, including its primary key. So, in the case of our table "email", you would have to query it first in order to find out the generated primary key for a given record (or just save it somewhere in the "then" method after inserting it).
 
 In a later section, we will learn how to perform more clever updates.
+
+IMPORTANT: when executing "update", if the record does not exist in the table, it will be INSERTED there.
 
 ## Deleting a record
 
@@ -488,7 +490,25 @@ If you think that this will only remove those records where age is 29 and first 
 The only important note here is that, differently from other Promises, this one will not return the records primary key only, but the whole record itself!
 
 ## Transactions
-//TODO
+
+I will not go into details about transactions. If you are used to databases, you know how they work. Put simply, a transaction is a group of commands that garantees that all of them will be persisted in the database: they either succeed together or fail together.
+
+This is exactly what happens, as mentioned earlier, when you pass an array to insert, update or delete methods. The difference here is that you can now combine those calls:
+
+	database.table("person")
+	.transaction()
+		.insert([
+			{ id : 900, firstname : "Benjamin", lastname : "Simpson", age : 40, gender : "M"},
+			{ id : 901, firstname : "Alice"   , lastname : "Simpson", age : 38, gender : "F"}
+		])
+		.update({ id : 121, firstname : "Grace", lastname : "Minitz" , age : 28, gender : "F" }) //Grace was deleted in ou "advanced deletes" section... this update will recreate her in the table
+		.delete(562) //deletes the record with key 562 (Mary Kovacs)
+		.commit()
+		.then(function(output) {
+			console.log(output);
+		});
+
+
 
 ## Truncating a table
 
