@@ -511,7 +511,20 @@ This is exactly what happens, as mentioned earlier, when you pass an array to th
 			console.log(output);
 		});
 
+The "output" within the "then" method is an object containing the names of the tables that suffered some kind of change and the keys of the modified objects. In the case of the example above, the output will be as follows:
 
+	{
+		person: {
+			insert : [900,901],
+			update : [121],
+			delete : [562]
+		},
+		email: {
+			insert : [2,3],
+			update : [],
+			delete : []
+		}
+	}
 
 ## Truncating a table
 
