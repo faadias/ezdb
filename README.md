@@ -491,18 +491,21 @@ The only important note here is that, differently from other Promises, this one 
 
 ## Transactions
 
-I will not go into details about transactions. If you are used to databases, you know how they work. Put simply, a transaction is a group of commands that garantees that all of them will be persisted in the database: they either succeed together or fail together.
+I will not go into details about transactions. If you are used to databases, you know how they work. Put simply, a transaction is a group of commands garanteed to be ENTIRELY persisted in the database or NOT AT ALL: they either succeed together or fail together.
 
-This is exactly what happens, as mentioned earlier, when you pass an array to insert, update or delete methods. The difference here is that you can now combine those calls:
+This is exactly what happens, as mentioned earlier, when you pass an array to the insert, update or delete methods. The difference here is that you can now combine those calls and use different tables:
 
-	database.table("person")
-	.transaction()
-		.insert([
+	database.transaction()
+		.insert("person", [
 			{ id : 900, firstname : "Benjamin", lastname : "Simpson", age : 40, gender : "M"},
 			{ id : 901, firstname : "Alice"   , lastname : "Simpson", age : 38, gender : "F"}
 		])
-		.update({ id : 121, firstname : "Grace", lastname : "Minitz" , age : 28, gender : "F" }) //Grace was deleted in ou "advanced deletes" section... this update will recreate her in the table
-		.delete(562) //deletes the record with key 562 (Mary Kovacs)
+		.update("person", { id : 121, firstname : "Grace", lastname : "Minitz" , age : 28, gender : "F" }) //Grace was deleted in our "advanced deletes" section... this update will recreate her in the table
+		.delete("person", 562) //deletes the record with key 562 (Mary Kovacs)
+		.insert("email", [
+			{ email : "ben.simpsone@domain.com", person_id : 900 },
+			{ email : "alice.simpsone@domain.com", person_id : 901 }
+		])
 		.commit()
 		.then(function(output) {
 			console.log(output);
