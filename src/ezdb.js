@@ -227,6 +227,17 @@
 	}
 	
 	
+	Database.prototype.transaction = function() {
+		var self = this;
+		
+		if (window.ezdb.isClosed(self._name)) {
+			throw "Database " + self._name + " is closed!";
+		}
+		
+		return new Transaction(self);
+	}
+	
+	
 	//Table
 	function Table(db, name, dbName) {
 		var self = this;
@@ -416,17 +427,6 @@
 		
 		return new Query(self._db, self);
 	}
-	
-	Table.prototype.transaction = function() {
-		var self = this;
-		
-		if (window.ezdb.isClosed(self._dbName)) {
-			throw "Database " + self._dbName + " is closed!";
-		}
-		
-		return new Transaction(self._db, self);
-	}
-	
 	
 	//Query
 	/*
@@ -1020,6 +1020,7 @@
 			self._table._dmlCounter++;
 			var transaction = self._db.transaction([self._table._name], READWRITE);
 			var table = transaction.objectStore(self._table._name);
+			var keyPath = table.keyPath;
 			var request = null;
 			
 			if (self._index === null) {
@@ -1039,7 +1040,7 @@
 					};
 					
 					if (self._filter === null || self._filter(getter)) {
-						data.push(deleteData);
+						data.push(deleteData[keyPath]);
 						cursor.delete(deleteData);
 					}
 					
@@ -1064,52 +1065,86 @@
 		return promise;
 	}
 	
+	//TransactionUnit
+	function TransactionUnit(tableName, trantype, data) {
+		var self = this;
+		self._tableName = tableName;
+		self._trantype = trantype;
+		self._data = data;
+	}
+	
 	//Transaction
-	function Transaction(db, table) {
+	function Transaction(database) {
 		var self = this;
-		self._db = db;
-		self._table = table;
+		self._database = database;
 		self._transactions = [];
-		self._trantypes = [];
-		self._resultset = { insert : [], update : [], delete : []};
+		self._resultset = {};
 	}
 	
-	Transaction.prototype.insert = function(data) {
+	Transaction.prototype.insert = function(tableName, data) {
 		var self = this;
+		
+		if (self._database.table(tableName) == null) {
+			throw "Table '" + tableName + "' was not found in database " + self._database._name + "!"; 
+		}
 		
 		if (Object.prototype.toString.call(data) !== "[object Array]") {
 			if (typeof data !== "object") {
-				throw "Bad parameters...";
+				throw "Bad parameters for transaction insert...";
 			}
 			data = [data];
 		}
 		
 		for (var i=0; i < data.length; i++) {
-			self._trantypes.push("insert");
-			self._transactions.push(data[i]);
+			self._transactions.push(new TransactionUnit(tableName, "insert", data[i]));
 		}
+		
 		return self;
 	}
 	
-	Transaction.prototype.update = function(data) {
+	Transaction.prototype.update = function(tableName, data) {
 		var self = this;
+		
+		if (self._database.table(tableName) == null) {
+			throw "Table '" + tableName + "' was not found in database " + self._database._name + "!"; 
+		}
 		
 		if (Object.prototype.toString.call(data) !== "[object Array]") {
 			if (typeof data !== "object") {
-				throw "Bad parameters...";
+				throw "Bad parameters for transaction update...";
 			}
 			data = [data];
 		}
 		
 		for (var i=0; i < data.length; i++) {
-			self._trantypes.push(data[i] instanceof Update ? "updateCursor" : "update");
-			self._transactions.push(data[i]);
+			self._transactions.push(new TransactionUnit(tableName, "update", data[i]));
 		}
 		return self;
 	}
 	
-	Transaction.prototype.delete = function(keys) {
+	Transaction.prototype.updatable = function(data) {
 		var self = this;
+		
+		if (Object.prototype.toString.call(data) !== "[object Array]") {
+			data = [data];
+		}
+		
+		for (var i=0; i < data.length; i++) {
+			if (!data instanceof Update) {
+				throw "The supplied parameter is not an updatable!";
+			}
+			var tableName = data[i]._table._name;
+			self._transactions.push(new TransactionUnit(tableName, "updateCursor", data[i]));
+		}
+		return self;
+	}
+	
+	Transaction.prototype.delete = function(tableName, keys) {
+		var self = this;
+		
+		if (self._database.table(tableName) == null) {
+			throw "Table '" + tableName + "' was not found in database " + self._database._name + "!"; 
+		}
 		
 		if (Object.prototype.toString.call(keys) !== "[object Array]") {
 			if (typeof keys === "object") {
@@ -1119,8 +1154,24 @@
 		}
 		
 		for (var i=0; i < keys.length; i++) {
-			self._trantypes.push(keys[i] instanceof Delete ? "deleteCursor" : "delete");
-			self._transactions.push(keys[i]);
+			self._transactions.push(new TransactionUnit(tableName, "delete", keys[i]));
+		}
+		return self;
+	}
+	
+	Transaction.prototype.deletable = function(data) {
+		var self = this;
+		
+		if (Object.prototype.toString.call(data) !== "[object Array]") {
+			data = [data];
+		}
+		
+		for (var i=0; i < data.length; i++) {
+			if (!data instanceof Delete) {
+				throw "The supplied parameter is not a deletable!";
+			}
+			var tableName = data[i]._table._name;
+			self._transactions.push(new TransactionUnit(tableName, "deleteCursor", data[i]));
 		}
 		return self;
 	}
@@ -1128,39 +1179,51 @@
 	Transaction.prototype.commit = function() {
 		var self = this;
 		
-		self._table._dmlCounter++;
-		var transaction = self._db.transaction([self._table._name], READWRITE);
-		var table = transaction.objectStore(self._table._name);
+		var tables = {};
+		for (var i=0; i < self._transactions.length; i++) {
+			var tableName = self._transactions[i]._tableName;
+			tables[tableName] = tables[tableName] == null ? 0 : tables[tableName]+1;
+			self._database.table(tableName)._dmlCounter++;
+		}
+		
+		var transaction = self._database._db.transaction(Object.keys(tables), READWRITE);
 		
 		var promise = new Promise (function(resolve, reject) {
 			for (var i=0; i < self._transactions.length; i++) {
-				var trantype = self._trantypes[i];
-				var request = null
+				var unit = self._transactions[i];
+				var table = transaction.objectStore(unit._tableName);
+				var keyPath = table.keyPath;
+				var trantype = unit._trantype;
+				var request = null;
+				
+				if (self._resultset[unit._tableName] == null) {
+					self._resultset[unit._tableName] = { "insert" : [], "update" : [], "delete" : [] };
+				}
+				
 				switch(trantype) {
 					case "insert":
-						request = table.add(self._transactions[i]);
+						request = table.add(unit._data);
 						request.onsuccess = function(e) {
-							self._resultset.insert.push(e.target.result);
+							self._resultset[e.target.source.name].insert.push(e.target.result);
 						};
 						break;
 					case "update":
-						request = table.put(self._transactions[i]);
+						request = table.put(unit._data);
 						request.onsuccess = function(e) {
-							self._resultset.update.push(e.target.result);
+							self._resultset[e.target.source.name].update.push(e.target.result);
 						};
 						break;
 					case "delete":
-						self._resultset.delete.push(self._transactions[i]);
-						table.delete(self._transactions[i]);
+						self._resultset[unit._tableName].delete.push(unit._data);
+						table.delete(unit._data);
 						break;
 					case "updateCursor":
-						var updtran = self._transactions[i];
-						if (updtran._index === null) {
-							request = table.openCursor(updtran._bounds);
+						if (unit._data._index === null) {
+							request = table.openCursor(unit._data._bounds);
 						}
 						else {
-							var index = table.index(updtran._index);
-							request = index.openCursor(updtran._bounds);
+							var index = table.index(unit._data._index);
+							request = index.openCursor(unit._data._bounds);
 						}
 			
 						request.onsuccess = function(e) {
@@ -1168,25 +1231,25 @@
 							if (cursor) {
 								var updateData = cursor.value;
 					
-								for(var key in updtran._set) {
-									if (typeof updtran._set[key] === "function") {
-										updtran._set[key](updateData);
+								for(var key in unit._data._set) {
+									if (typeof unit._data._set[key] === "function") {
+										unit._data._set[key](updateData);
 									}
 									else {
-										updateData[key] = updtran._set[key];
+										updateData[key] = unit._data._set[key];
 									}
 								}
 					
-								if (updtran._del != null) {
-									if (Object.prototype.toString.call(updtran._del) === "[object Array]") {
-										for(var i=0; i < updtran._del.length; i++) {
-											var key = updtran._del[i]
+								if (unit._data._del != null) {
+									if (Object.prototype.toString.call(unit._data._del) === "[object Array]") {
+										for(var i=0; i < unit._data._del.length; i++) {
+											var key = unit._data._del[i]
 											delete updateData[key];
 										}
 									}
 									else { //json
-										for(var key in updtran._del) {
-											if (updtran._del[key] === true || ( typeof updtran._del[key] === "function" && updtran._del[key](updateData) )) {
+										for(var key in unit._data._del) {
+											if (unit._data._del[key] === true || ( typeof unit._data._del[key] === "function" && unit._data._del[key](updateData) )) {
 												delete updateData[key];
 											}
 										}
@@ -1195,7 +1258,8 @@
 					
 								var updateRequest = cursor.update(updateData);
 								updateRequest.onsuccess = function(e) {
-									self._resultset.update.push(e.target.result);
+									var tableName = e.target.source.source instanceof IDBObjectStore ? e.target.source.source.name : e.target.source.source.objectStore.name;
+									self._resultset[tableName].update.push(e.target.result);
 								};
 					
 								cursor.continue();
@@ -1203,13 +1267,12 @@
 						};
 						break;
 					case "deleteCursor":
-						var deltran = self._transactions[i];
-						if (deltran._index === null) {
-							request = table.openCursor(deltran._bounds);
+						if (unit._data._index === null) {
+							request = table.openCursor(unit._data._bounds);
 						}
 						else {
-							var index = table.index(deltran._index);
-							request = index.openCursor(deltran._bounds);
+							var index = table.index(unit._data._index);
+							request = index.openCursor(unit._data._bounds);
 						}
 			
 						request.onsuccess = function(e) {
@@ -1217,8 +1280,9 @@
 							if (cursor) {
 								var deleteData = cursor.value;
 					
-								if (deltran._filter === null || deltran._filter(deleteData)) {
-									self._resultset.delete.push(deleteData);
+								if (unit._data._filter === null || unit._data._filter(deleteData)) {
+									var tableName = e.target.source instanceof IDBObjectStore ? e.target.source.name : e.target.source.objectStore.name;
+									self._resultset[tableName].delete.push(deleteData[keyPath]);
 									cursor.delete(deleteData);
 								}
 					
@@ -1230,15 +1294,24 @@
 			}
 			
 			transaction.oncomplete = function(e) {
-				self._table._dmlCounter--;
+				for (var tableName in tables) {
+					var counter = tables[tableName];
+					self._database.table(tableName)._dmlCounter -= counter;
+				}
 				resolve(self._resultset);
 			};
 			transaction.onerror = function(e) {
-				self._table._dmlCounter--;
+				for (var tableName in tables) {
+					var counter = tables[tableName];
+					self._database.table(tableName)._dmlCounter -= counter;
+				}
 				reject(e.target.error);
 			};
 			transaction.onabort = function(e) {
-				self._table._dmlCounter--;
+				for (var tableName in tables) {
+					var counter = tables[tableName];
+					self._database.table(tableName)._dmlCounter -= counter;
+				}
 				reject(e.target.error);
 			};
 		});
@@ -1249,5 +1322,3 @@
 	window.ezdb = new DBManager();
 	
 }) (window);
-
-
