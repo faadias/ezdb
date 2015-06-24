@@ -1122,23 +1122,6 @@
 		return self;
 	}
 	
-	Transaction.prototype.updatable = function(data) {
-		var self = this;
-		
-		if (Object.prototype.toString.call(data) !== "[object Array]") {
-			data = [data];
-		}
-		
-		for (var i=0; i < data.length; i++) {
-			if (!data instanceof Update) {
-				throw "The supplied parameter is not an updatable!";
-			}
-			var tableName = data[i]._table._name;
-			self._transactions.push(new TransactionUnit(tableName, "updateCursor", data[i]));
-		}
-		return self;
-	}
-	
 	Transaction.prototype.delete = function(tableName, keys) {
 		var self = this;
 		
@@ -1155,23 +1138,6 @@
 		
 		for (var i=0; i < keys.length; i++) {
 			self._transactions.push(new TransactionUnit(tableName, "delete", keys[i]));
-		}
-		return self;
-	}
-	
-	Transaction.prototype.deletable = function(data) {
-		var self = this;
-		
-		if (Object.prototype.toString.call(data) !== "[object Array]") {
-			data = [data];
-		}
-		
-		for (var i=0; i < data.length; i++) {
-			if (!data instanceof Delete) {
-				throw "The supplied parameter is not a deletable!";
-			}
-			var tableName = data[i]._table._name;
-			self._transactions.push(new TransactionUnit(tableName, "deleteCursor", data[i]));
 		}
 		return self;
 	}
@@ -1216,79 +1182,6 @@
 					case "delete":
 						self._resultset[unit._tableName].delete.push(unit._data);
 						table.delete(unit._data);
-						break;
-					case "updateCursor":
-						if (unit._data._index === null) {
-							request = table.openCursor(unit._data._bounds);
-						}
-						else {
-							var index = table.index(unit._data._index);
-							request = index.openCursor(unit._data._bounds);
-						}
-			
-						request.onsuccess = function(e) {
-							var cursor = e.target.result;
-							if (cursor) {
-								var updateData = cursor.value;
-					
-								for(var key in unit._data._set) {
-									if (typeof unit._data._set[key] === "function") {
-										unit._data._set[key](updateData);
-									}
-									else {
-										updateData[key] = unit._data._set[key];
-									}
-								}
-					
-								if (unit._data._del != null) {
-									if (Object.prototype.toString.call(unit._data._del) === "[object Array]") {
-										for(var i=0; i < unit._data._del.length; i++) {
-											var key = unit._data._del[i]
-											delete updateData[key];
-										}
-									}
-									else { //json
-										for(var key in unit._data._del) {
-											if (unit._data._del[key] === true || ( typeof unit._data._del[key] === "function" && unit._data._del[key](updateData) )) {
-												delete updateData[key];
-											}
-										}
-									}
-								}
-					
-								var updateRequest = cursor.update(updateData);
-								updateRequest.onsuccess = function(e) {
-									var tableName = e.target.source.source instanceof IDBObjectStore ? e.target.source.source.name : e.target.source.source.objectStore.name;
-									self._resultset[tableName].update.push(e.target.result);
-								};
-					
-								cursor.continue();
-							}
-						};
-						break;
-					case "deleteCursor":
-						if (unit._data._index === null) {
-							request = table.openCursor(unit._data._bounds);
-						}
-						else {
-							var index = table.index(unit._data._index);
-							request = index.openCursor(unit._data._bounds);
-						}
-			
-						request.onsuccess = function(e) {
-							var cursor = e.target.result;
-							if (cursor) {
-								var deleteData = cursor.value;
-					
-								if (unit._data._filter === null || unit._data._filter(deleteData)) {
-									var tableName = e.target.source instanceof IDBObjectStore ? e.target.source.name : e.target.source.objectStore.name;
-									self._resultset[tableName].delete.push(deleteData[keyPath]);
-									cursor.delete(deleteData);
-								}
-					
-								cursor.continue();
-							}
-						};
 						break;
 				}
 			}
