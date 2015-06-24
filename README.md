@@ -534,5 +534,36 @@ In order to truncate a table and clear all of its records, just call:
 
 This makes me realize that, generally, the simplest of commands is also the most damaging one...
 
+## Waiting for parallel Promises to finish
+
+As mentioned earlier, you can insert, update or delete records within a foor loop to avoid the transactional behaviour. Although parallel, what if we need to WAIT until all of the operations are finished before proceeding? All you have to do is use the ezdb.wait method. Let us write an example with a loop:
+
+	var people = [
+		{ id : 45, firstname : "Joanne" , lastname : "Pope"     , age : 72, gender : "F" },
+		{ id : 46, firstname : "Frank"  , lastname : "Schwartz" , age : 51, gender : "M" },
+		{ id : 47, firstname : "Jack"   , lastname : "Mills"    , age : 33, gender : "M" }
+	];
+	
+	var keyForDeletion = 222;
+	
+	var promises = [];
+	
+	for (var i=0; i < people.length; ++i) {
+		promises.push(database.table("person").insert(people[i]));
+	}
+	
+	promises.push(database.table("person").delete(keyForDeletion));
+	
+	ezdb.wait(promises).then(function(output) {
+		console.log(output);
+		//Do whatever you need now that all operations have finished.
+	});
+	
+The "output" in the "then" method is an array containing the outputs of every transaction.
+
+Remember that some operations may fail, some not, but the ones that succeed will be persisted in the database regardless of the ones that went wrong.
+
+You can pass a second function to "then" for error handling.
+
 ## Updating you database structure
 //TODO
