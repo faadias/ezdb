@@ -566,4 +566,40 @@ Remember that some operations may fail, some not, but the ones that succeed will
 You can pass a second function to "then" for error handling.
 
 ## Updating you database structure
-//TODO
+
+Now suppose we need to change our database's structure like: create new tables/drop old ones, add new indexes/remove old ones etc. To do this, we just have to increase the version number when opening it and write down the differences:
+
+	var database = null;
+	ezdb.open({
+	    database : "MyFirstDatabase",
+	    version : 2,	//New version here!
+	    tables : {
+	        person : {
+	            indexes : [
+	                { name : "firstnameage", columns : ["firstname","age"], unique : false }
+	            ],
+	            delindexes : [
+	                "age"
+	            ]
+	        },
+	        email : {
+	            drop : true
+	        }
+	    }
+	}).then(function(db) {
+	    database = db;
+	});
+
+As you can see, this step is incremental: you dot not have to repeat the old structure, just the changes. Do not worry if you do specify some part of the old strucutre again because they will just be ignored.
+
+In our example, we created a new index for table "person", removed its index called "age" and dropped the table "email". These, I believe, are all the changes that can be made. Of course, if you need a new table, just add it there.
+
+Note: if you are using google chrome's development console (Resources tab) to monitor your database, be aware that, although the changes in the sructure have taken effect after the above command, they might only appear there after you refresh the page (closing ans reopening also works). Sometimes you maay need to refresh the database by right-clicking on it and choosing "Refresh IndexedDB".
+
+## Final thoughts
+
+There are other libraries out there that will handle the job, possibly much better than this one. As I said, I only wrote this code for a better understandinf of how IndexedDB and Promises work (and also because I am too lazy to try and understand everyone else's code).
+
+If you decide to use it, please report any bugs you may find so I can fix them properly, ok?
+
+Have fun!
