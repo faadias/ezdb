@@ -598,7 +598,7 @@ Note: if you are using google chrome's development console (Resources tab) to mo
 
 ## Final thoughts
 
-There are other libraries out there that will handle the job, possibly much better than this one. As I said, I only wrote this code for a better understandinf of how IndexedDB and Promises work (and also because I am too lazy to try and understand everyone else's code).
+There are other libraries out there that will handle the job, possibly much better than this one. As I said, I only wrote this code for a better understanding of how IndexedDB and Promises work (and also because I am too lazy to try and understand everyone else's code).
 
 If you decide to use it, please report any bugs you may find so I can fix them properly, ok?
 
