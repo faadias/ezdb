@@ -374,7 +374,7 @@
 		return promise;
 	}
 	
-	Table.prototype.delete = function(keys) {
+	Table.prototype.remove = function(keys) {
 		var self = this;
 		
 		if (window.ezdb.isClosed(self._dbName)) {
@@ -1122,7 +1122,7 @@
 		return self;
 	}
 	
-	Transaction.prototype.delete = function(tableName, keys) {
+	Transaction.prototype.remove = function(tableName, keys) {
 		var self = this;
 		
 		if (self._database.table(tableName) == null) {
@@ -1137,7 +1137,7 @@
 		}
 		
 		for (var i=0; i < keys.length; i++) {
-			self._transactions.push(new TransactionUnit(tableName, "delete", keys[i]));
+			self._transactions.push(new TransactionUnit(tableName, "remove", keys[i]));
 		}
 		return self;
 	}
@@ -1163,7 +1163,7 @@
 				var request = null;
 				
 				if (self._resultset[unit._tableName] == null) {
-					self._resultset[unit._tableName] = { "insert" : [], "update" : [], "delete" : [] };
+					self._resultset[unit._tableName] = { "insert" : [], "update" : [], "remove" : [] };
 				}
 				
 				switch(trantype) {
@@ -1179,8 +1179,8 @@
 							self._resultset[e.target.source.name].update.push(e.target.result);
 						};
 						break;
-					case "delete":
-						self._resultset[unit._tableName].delete.push(unit._data);
+					case "remove":
+						self._resultset[unit._tableName].remove.push(unit._data);
 						table.delete(unit._data);
 						break;
 				}
@@ -1215,3 +1215,4 @@
 	window.ezdb = new DBManager();
 	
 }) (window);
+
