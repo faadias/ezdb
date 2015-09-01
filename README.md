@@ -69,7 +69,7 @@ Here is a list of other useful methods of the database object:
 	database.name();				//Retrieves the database name: "MyFirstDatabase"
 	database.version();				//Retrieves the database version: 1
 	database.tables();				//Retrieves an array with the names of all this database's tables: ["person","email"]
-	database.table("tableName");	//Retrieves a Table object for querying, inserting, deleting and updating purposes (see the topics below for usage examples)
+	database.table("tableName");	//Retrieves a Table object for querying, inserting, removing and updating purposes (see the topics below for usage examples)
 	database.close();				//Immediately closes this database, allowing you to update or drop it; while closed, it is not possible to use the database for querying etc
 	database.isClosed();			//Tells whether this database is closed or not; another way to test this is by calling 'ezdb.isClosed("databaseName")'
 	database.drop();				//Drops the entire database; this is only possible if the database is closed. Example: database.close().drop().
@@ -134,13 +134,13 @@ Differently from insertion, a query comprises many possible options, like queryi
 			console.log(results);
 		});
 
-The first thing we do is specify the table we are querying. When an index is not specified, the "equals" method will look up the record by its key (222, in our example). After specifying the parameters, we just run our query by calling the "go" method (yes, I am a Sybase user). The returned value is, as we are already used to, is a Promise. By calling its "then" method, we have access to an array of the query's results. In the above example, that is what we will get on the console: [{ id : 222, firstname : "Anne" , lastname : "Millard", age : 22, gender : "F" }].
+The first thing we do is to specify the table we are querying. When an index is not specified, the "equals" method will look up the record by its key (222, in our example). After specifying the parameters, we just run our query by calling the "go" method (yes, I am a Sybase user). The returned value is, as we are already used to, a Promise. By calling its "then" method, we have access to an array of the query's results. In the above example, what we get on the console is this: [{ id : 222, firstname : "Anne" , lastname : "Millard", age : 22, gender : "F" }].
 
-Note: even though a key is unique per record, the result of a query will always bring an array.
+Note: even though a key is unique per record, the result of a query will always be an array.
 
 Here is a list of possible configurations for your query, followed by a bunch of examples. Try to run some of them and see if you understand what is going on.
 
-- desc(): Retrieves the results in descendind order by key or by index, if one is specified. The default behaviour is asceding order;
+- desc(): Retrieves the results in descending order by key or by index, if one is specified. The default behaviour is asceding order;
 - distinct(): Retrieves only the records with distinct index value, i.e., if two records have the same value in the specified index column, only the one with the lowest key is returned; if an index is not specified, "distinct" has no effect;
 - first("number"): Retrieves only the first "number" records. Deafult is "0" for ALL records;
 - index("index_name"): Makes a query by the identified "index_name" and not by the key, which is the default behaviour;
@@ -220,8 +220,7 @@ Examples:
 		});
 	```
 
-6. Returns an array of objects like this: { key : "primaryKey", value : "indexValue"}. Example when index is "age: { key : 222, value : 22}:
-Note: "keyvalue" can only be specified alongside an index.
+6. Returns an array of objects like this: { key : "primaryKey", value : "indexValue"}. Example when index is "age": { key : 222, value : 22}. Note: "keyvalue" can only be specified alongside an index.
 
 	```javascript
 	database.table("person")
@@ -381,19 +380,19 @@ In a later section, we will learn how to perform more clever updates.
 
 IMPORTANT: when executing "update", if the record does not exist in the table, it will be INSERTED there.
 
-## Deleting a record
+## Removing a record
 
-Deleting a record is just as easy as inserting or updating. The only difference is that we only need to pass the keys we want removed from the table and not the whole object. Say goodbye to Jean, because he is moving back to France:
+Removing a record is just as easy as inserting or updating. The only difference is that we only need to pass the keys we want removed from the table and not the whole object. Say goodbye to Jean, because he is moving back to France:
 
 	database.table("person")
-		.delete(311)				//311 is Jean Fauchelevent's id
+		.remove(311)				//311 is Jean Fauchelevent's id
 		.then(function(keys) {
 			console.log(keys);
 		});
 
-As usual, the result of the delete call is also a Promise with an array of the deleted keys.
+As usual, the result of the remove call is also a Promise with an array of the removed keys.
 
-Just like insert and update, the delete method will accept an array of keys to be deleted. Just remember that this will happen within a transaction, if an error is to be thrown for ANY record, NONE will be removed.
+Just like insert and update, the remove method will accept an array of keys to be removed. Just remember that this will happen within a transaction, if an error is to be thrown for ANY record, NONE will be removed.
 
 ## Advanced updates
 
@@ -402,9 +401,9 @@ OK, imagine a scenario where I do not have all the information about a record, I
 	database.table("person")
 		.update()
 		.set({
-            age : function(getter) {
-			    return getter("age") + 1;
-            }
+			age : function(getter) {
+				return getter("age") + 1;
+			}
 		})
 		.go()
 		.then(function(results) {
@@ -445,7 +444,7 @@ This kind of update can also be used alongside indexes and boundings. You can us
 		.go()
 	```
 
-3. When removing an attribute, you can pass a function that returns a boolean and decides whether the attribute should be erased or not. Or you could specify the an attribute should be removed for everybody:
+3. When removing an attribute, you can pass a function that returns a boolean and decides whether the attribute should be erased or not. Or you could specify that an attribute should be removed for everybody:
 
 	```javascript
 	database.table("person")
@@ -469,12 +468,12 @@ Note: the returned keys array in the Promise will contain all the keys, even tho
 		.go()
 	```
 
-## Advanced deletes
+## Advanced removal
 
 Very similitar to advanced updating and querying, I believe that at this point you will be able to figure out what the code below does:
 
 	database.table("person")
-		.delete()
+		.remove()
 		.index("age")
 	    .equals(29)
 		.filter(function(getter){
@@ -493,15 +492,15 @@ The only important note here is that, differently from other Promises, this one 
 
 I will not go into details about transactions. If you are used to databases, you know how they work. Put simply, a transaction is a group of commands garanteed to be ENTIRELY persisted in the database or NOT AT ALL: they either succeed together or fail together.
 
-This is exactly what happens, as mentioned earlier, when you pass an array to the insert, update or delete methods. The difference here is that you can now combine those calls and use different tables:
+This is exactly what happens, as mentioned earlier, when you pass an array to the insert, update or remove methods. The difference here is that you can now combine those calls and use different tables:
 
 	database.transaction()
 		.insert("person", [
 			{ id : 900, firstname : "Benjamin", lastname : "Simpson", age : 40, gender : "M"},
 			{ id : 901, firstname : "Alice"   , lastname : "Simpson", age : 38, gender : "F"}
 		])
-		.update("person", { id : 121, firstname : "Grace", lastname : "Minitz" , age : 28, gender : "F" }) //Grace was deleted in our "advanced deletes" section... this update will recreate her in the table
-		.delete("person", 562) //deletes the record with key 562 (Mary Kovacs)
+		.update("person", { id : 121, firstname : "Grace", lastname : "Minitz" , age : 28, gender : "F" }) //Grace was removed in our "advanced removal" section... this update will recreate her in the table
+		.remove("person", 562) //removes the record with key 562 (Mary Kovacs)
 		.insert("email", [
 			{ email : "ben.simpsone@domain.com", person_id : 900 },
 			{ email : "alice.simpsone@domain.com", person_id : 901 }
@@ -517,12 +516,12 @@ The "output" within the "then" method is an object containing the names of the t
 		person: {
 			insert : [900,901],
 			update : [121],
-			delete : [562]
+			remove : [562]
 		},
 		email: {
 			insert : [2,3],
 			update : [],
-			delete : []
+			remove : []
 		}
 	}
 
@@ -536,7 +535,7 @@ This makes me realize that, generally, the simplest of commands is also the most
 
 ## Waiting for parallel Promises to finish
 
-As mentioned earlier, you can insert, update or delete records within a foor loop to avoid the transactional behaviour. Although parallel, what if we need to WAIT until all of the operations are finished before proceeding? All you have to do is use the ezdb.wait method. Let us write an example with a loop:
+As mentioned earlier, you can insert, update or remove records within a foor loop to avoid the transactional behaviour. Although parallel, what if we need to WAIT until all of the operations are finished before proceeding? All you have to do is use the ezdb.wait method. Let us write an example with a loop:
 
 	var people = [
 		{ id : 45, firstname : "Joanne" , lastname : "Pope"     , age : 72, gender : "F" },
@@ -544,7 +543,7 @@ As mentioned earlier, you can insert, update or delete records within a foor loo
 		{ id : 47, firstname : "Jack"   , lastname : "Mills"    , age : 33, gender : "M" }
 	];
 	
-	var keyForDeletion = 222;
+	var keyForRemoval = 222;
 	
 	var promises = [];
 	
@@ -552,7 +551,7 @@ As mentioned earlier, you can insert, update or delete records within a foor loo
 		promises.push(database.table("person").insert(people[i]));
 	}
 	
-	promises.push(database.table("person").delete(keyForDeletion));
+	promises.push(database.table("person").remove(keyForRemoval));
 	
 	ezdb.wait(promises).then(function(output) {
 		console.log(output);
