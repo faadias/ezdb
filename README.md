@@ -1,7 +1,7 @@
 # ezdb.js
 EZDB - Yet Another Wrapper for IndexedDB
 
-ezdb.js is a wrapper for [IndexedDB](http://www.w3.org/TR/IndexedDB/). As the name suggests, it is supposed to make querying a lot E-Z-er (easier) to work with.
+ezdb.js is a wrapper for [IndexedDB](http://www.w3.org/TR/IndexedDB/). As the name suggests, it is supposed to make querying a lot E-Z-er (easier).
 
 I wrote my own wrapper for learning purposes only, but I will try and keep this project up-to-date whenever I can.
 
