@@ -7,6 +7,11 @@ I wrote my own wrapper for learning purposes only, but I will try and keep this 
 
 This library's look'n'feel was strongly based upon [Aaron Powell's db.js](https://github.com/aaronpowell/db.js/).
 
+Before You Begin
+================
+
+You may test the examples below using your browser's Developer Tools. If that is Google Chrome, use the Console tab for the inputs and check the Resources tab to monitor your database. Bear in mind, however, that some of the changes, mainly those that affect the sructure of a table, might only be shown after you refresh the page (closing and reopening it also works). Some other time, refreshing the database (by right-clicking on it and choosing "Refresh IndexedDB") may suffice.
+
 Usage
 =====
 
@@ -14,7 +19,7 @@ Just add a reference to ezdb.js in your application:
 
 	<script src="ezdb.js"></script>
 
-If IndexedDB is NOT supported by the browser, you'll be informed on the console: "IndexedDB not supported!".
+If IndexedDB is NOT supported by the browser, you will be informed on the console: "IndexedDB not supported!".
 
 Now, the next thing to do is create you DATABASE and the TABLES (stores) within it:
 
@@ -116,7 +121,7 @@ The returned value of the insert method is also a Promise and so we may call its
 		//Do something else
 	});
 
-In the above example, we are inserting a new email for John Doe, but since the table "email" has an auto-incremental primary key, we would not know which key value was generated for this record. To find it out, we just have to call the Proimise's "then" method and it will provide us an array of keys in the same order the objects were inserted. In this case, since the table was empty, the number 1 was assigned to the record.
+In the above example, we are inserting a new email for John Doe, but since the table "email" has an auto-incremental primary key, we would not know which key value was generated for this record. To find it out, we just have to call the Promise's "then" method and it will provide us an array of keys in the same order the objects were inserted. In this case, since the table was empty, the number 1 was assigned to the record.
 
 Note: even though we are inserting only ONE record and not an array of "emails", the resulting "keys" of the "then" method will always be an array.
 
@@ -124,7 +129,7 @@ Note: even though we are inserting only ONE record and not an array of "emails",
 
 Now that we have some data in our database, how about querying it?
 
-Differently from insertion, a query comprises many possible options, like querying by index, present results in descending order etc. Because of that, it must be built before being executed:
+Differently from insertion, a query comprises many possible options, like: querying by index, present results in descending order etc. Because of that, a query must be **built** before being executed:
 
 	database.table("person")
 		.query()
@@ -299,7 +304,7 @@ Examples:
 		});
 	```
 
-12. Counts the number of records in the database where the key equals 222 and retrieves the number:
+12. Counts the number of records in the database where the key equals 222 and retrieves the number (being a key, of course there will be only one):
 
 	```javascript
 	database.table("person")
@@ -382,7 +387,7 @@ IMPORTANT: when executing "update", if the record does not exist in the table, i
 
 ## Removing a record
 
-Removing a record is just as easy as inserting or updating. The only difference is that we only need to pass the keys we want removed from the table and not the whole object. Say goodbye to Jean, because he is moving back to France:
+Removing a record is just as easy as inserting or updating. The only difference is that we only need to pass the keys of the records we want removed from the table (and not the whole object). Say goodbye to Jean, because he is moving back to France:
 
 	database.table("person")
 		.remove(311)				//311 is Jean Fauchelevent's id
@@ -392,11 +397,11 @@ Removing a record is just as easy as inserting or updating. The only difference 
 
 As usual, the result of the remove call is also a Promise with an array of the removed keys.
 
-Just like insert and update, the remove method will accept an array of keys to be removed. Just remember that this will happen within a transaction, if an error is to be thrown for ANY record, NONE will be removed.
+Just like insert and update, the remove method will accept an array of keys to be removed. Just remember that this will happen within a transaction, so if an error is to be thrown for ANY record, NONE will be removed.
 
 ## Advanced updates
 
-OK, imagine a scenario where I do not have all the information about a record, I only know WHAT has to be changed and in WHICH circumstances. In our previou update example, I said that a year had passed, but why only Mary Kovacs got older? Everybody's age should have been incremented by one, right? This is how we do it:
+OK, imagine a scenario where I do not have all the information about a record, I only know WHAT has to be changed and in WHICH circumstances. In our previous update example, I said that a year had passed, but why only Mary Kovacs got older? Everybody's age should have been incremented by one, right? This is how we do it:
 
 	database.table("person")
 		.update()
@@ -414,7 +419,7 @@ As you might be getting tired already, yes, the returned value of this update ca
 
 Now, let us break down the code into pieces for a better understading, shall we?
 
-First, we call the table's update method just like before, except that this time it does not have any parameters. Then, we specify what we want to "set" (in our example, it is the attribute "age"). We could have used a fixed number, but then everybody would have been updated to the same age. No, what we wanted was to increase the person's previous age by one, so we pass a function that will have access to all of the record's attributes and will decide which changes should be made. Notice that the access to the attributes is made by a "getter" function, so that the actual object is not exposed. You cal call "getter" with any of the records attribute.
+First, we call the table's update method just like before, except that this time it does not have any parameters. Then, we specify what we want to "set" (in our example, it is the attribute "age"). We could have used a fixed number, but then everybody would have been updated to the same age. No, what we wanted was to increase the person's previous age by one, so we pass a function that will have access to all of the record's attributes and will decide which changes should be made. Notice that the access to the attributes is made by a "getter" function, so that the actual object is not exposed. You can call *getter* with any of the records attribute.
 
 After specifying what we want to "set", our "update" is configured and can be executed. To do that, we just call its "go" method, just like we did with queries.
 
@@ -426,7 +431,7 @@ This kind of update can also be used alongside indexes and boundings. You can us
 	database.table("person")
 		.update()
 		.index("age")
-	    .equals(28)
+		.equals(29)
 		.set({age : 56, gender : "M"})
 		.go()
 		.then(function(keys) {
@@ -439,9 +444,12 @@ This kind of update can also be used alongside indexes and boundings. You can us
 	database.table("person")
 		.update()
 		.index("age")
-	    .upperBound(24, true)
+		.upperBound(24, true)
 		.del("gender")
 		.go()
+		.then(function(keys) {
+			console.log(keys); //logs an array of the affected records' keys
+		});
 	```
 
 3. When removing an attribute, you can pass a function that returns a boolean and decides whether the attribute should be erased or not. Or you could specify that an attribute should be removed for everybody:
@@ -456,10 +464,13 @@ This kind of update can also be used alongside indexes and boundings. You can us
 			}
 		})
 		.go()
+		.then(function(keys) {
+			console.log(keys); //logs an array of the affected records' keys
+		});
 	```
 
 4. The "del" method also accpets an array of attributes that should be erased:
-Note: the returned keys array in the Promise will contain all the keys, even those whose records did not have the removed attribute. This is because the entire table is traversed if an index or boundings are not specified.
+Note: the **affected keys* array returned in the Promise will contain ALL the keys, even those whose records were already missing the removed attribute. This is because the entire table is traversed when an index or boundings are not specified.
 
 	```javascript
 	database.table("person")
@@ -475,7 +486,7 @@ Very similitar to advanced updating and querying, I believe that at this point y
 	database.table("person")
 		.remove()
 		.index("age")
-	    .equals(29)
+	    .equals(56)
 		.filter(function(getter){
 			return getter("firstname") === "Grace";
 		})
@@ -484,9 +495,9 @@ Very similitar to advanced updating and querying, I believe that at this point y
 			console.log(results);
 		});
 
-If you think that this will only remove those records where age is 29 and first name is "Grace", then you guessed it right!
+If you think that this will only remove those records where age is 56 and first name is "Grace", then you guessed it right!
 
-The only important note here is that, differently from other Promises, this one will not return the records primary key only, but the whole record itself!
+The only important note here is that, differently from other Promises, this one will not return only the records' primary keys, but the whole record itself!
 
 ## Transactions
 
@@ -529,9 +540,11 @@ The "output" within the "then" method is an object containing the names of the t
 
 In order to truncate a table and clear all of its records, just call:
 
-	database.table("person").truncate()
+	database.table("person").truncate();
 
 This makes me realize that, generally, the simplest of commands is also the most damaging one...
+
+Anyway, the Promise resulting from this operation will retrieve the Table "person", so you may continue to make operations upon it being sure that now the table is empty.
 
 ## Waiting for parallel Promises to finish
 
@@ -566,7 +579,7 @@ You can pass a second function to "then" for error handling.
 
 ## Updating you database structure
 
-Now suppose we need to change our database's structure like: create new tables/drop old ones, add new indexes/remove old ones etc. To do this, we just have to increase the version number when opening it and write down the differences:
+Now suppose we need to change our database's structure like: create new tables/drop old ones, add new indexes/remove old ones etc. To do this, we just have to increase the version number when opening the database and write down the differences:
 
 	var database = null;
 	ezdb.open({
@@ -592,8 +605,6 @@ Now suppose we need to change our database's structure like: create new tables/d
 As you can see, this step is incremental: you dot not have to repeat the old structure, just the changes. Do not worry if you do specify some part of the old strucutre again because they will just be ignored.
 
 In our example, we created a new index for table "person", removed its index called "age" and dropped the table "email". These, I believe, are all the changes that can be made. Of course, if you need a new table, just add it there.
-
-Note: if you are using google chrome's development console (Resources tab) to monitor your database, be aware that, although the changes in the sructure have taken effect after the above command, they might only appear there after you refresh the page (closing ans reopening also works). Sometimes you maay need to refresh the database by right-clicking on it and choosing "Refresh IndexedDB".
 
 ## Final thoughts
 
