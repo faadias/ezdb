@@ -1,7 +1,7 @@
 /* EZDB - Yet Another Wrapper for IndexedDB
- * Version 1.0.0
+ * Version 1.1.0
  * 
- * Copyright (c) 2015 Felipe Dias, Twitter: @faadias1
+ * Copyright (c) 2015, 2016 Felipe Dias
  * 
  * Special thanks to Aaron Powell, whose 'db.js' was the inspiration for 
  * this project!
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with EZDB.  If not, see <http://www.gnu.org/licenses/>.
+ * along with EZDB. If not, see <http://www.gnu.org/licenses/>.
  */
 
 (function ( window ) {
@@ -29,46 +29,67 @@
 	var IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange;
 	var READONLY = "readonly";
 	var READWRITE = "readwrite";
+	var DEBUG = false;
 	
 	if (indexedDB == null) {
 		throw "IndexedDB not supported!";
 	}
 	
+	function datatypeof(object) {
+		return Object.prototype.toString.call(object);
+	}
 	
-	//DBManager
-	function DBManager() {
+	function debug(error) {
+		if (DEBUG) {
+			console.log(error);
+		}
+	}
+	
+	//EZDB
+	function EZDB() {
 		var self = this;
 		self._dbs = {};
 	}
 	
-	DBManager.prototype.isClosed = function(dbName) {
+	EZDB.prototype.debugOn = function() {
+		DEBUG = true;
+	}
+	
+	EZDB.prototype.debugOff = function() {
+		DEBUG = false;
+	}
+	
+	EZDB.prototype.isClosed = function(dbName) {
 		var self = this;
 		if (self._dbs[dbName] == null) {
-			throw "Database " + dbName + " couldn't be found!";
+			throw "Database " + dbName + " could not be found!";
 		}
 		return self._dbs[dbName].isClosed();
 	}
 	
-	DBManager.prototype.open = function(config) {
+	EZDB.prototype.open = function(config) {
 		var self = this;
+		
+		if (config == null || config.database == null || config.version == null || config.tables == null) {
+			throw "Invalid configuration parameters!";
+		}
+		
 		var promise = new Promise(function(resolve, reject) {
-			if (config == null || config.database == null || config.version == null || config.tables == null) {
-				throw "Invalid configuration parameters!";
-			}
-			
 			var dbName = config.database;
 			var dbVersion = config.version;
 			var tableSchemas = config.tables;
 			
-			if (window.ezdb._dbs[dbName] != null && window.ezdb._dbs[dbName].isClosed()) {
-				throw "Database " + dbName + " is already open!";
+			if (window.ezdb._dbs[dbName] != null && !window.ezdb._dbs[dbName].isClosed()) {
+				reject("Database " + dbName + " is already open!");
+				return;
 			}
 			
 			var request = indexedDB.open(dbName, dbVersion);
 		
 			request.onupgradeneeded = function(e) {
 				if (window.ezdb._dbs[dbName] != null && !window.ezdb.isClosed(dbName)) {
-					throw "Database " + dbName + " should be closed for an upgrade to take place!";
+					reject("Database " + dbName + " should be closed for an upgrade to take place!");
+					return;
 				}
 				
 				for (var tableName in tableSchemas) {
@@ -90,7 +111,7 @@
 						e.target.result.deleteObjectStore(tableName);
 					}
 					else {
-						if (tableSchema.indexes != null && Object.prototype.toString.call(tableSchema.indexes) === "[object Array]") {
+						if (tableSchema.indexes != null && datatypeof(tableSchema.indexes) === "[object Array]") {
 							for (var i=0; i < tableSchema.indexes.length; i++) {
 								var index = tableSchema.indexes[i];
 								var name = index.name;
@@ -102,7 +123,7 @@
 							}
 						}
 						
-						if (tableSchema.delindexes != null && Object.prototype.toString.call(tableSchema.delindexes) === "[object Array]") {
+						if (tableSchema.delindexes != null && datatypeof(tableSchema.delindexes) === "[object Array]") {
 							for (var i=0; i < tableSchema.delindexes.length; i++) {
 								var indexName = tableSchema.delindexes[i];
 								if (table.indexNames.contains(indexName)) {
@@ -115,8 +136,8 @@
 			};
 			
 			request.onblocked = function(e) { // If some other tab is loaded with the db, then it needs to be closed before we can proceed.
-				reject(e.target.error);
-				throw "Please close all other tabs with this site open!";
+				debug(e.target.error);
+				reject("Please close all other tabs with this site open!");
 			};
 			
 			request.onsuccess = function(e) {
@@ -142,18 +163,15 @@
 			}
 
 			request.onerror = function(e) {
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to open the database!");
 			}
 		});
 		return promise;
 	}
 	
-	DBManager.prototype.wait = function(promises) {
-		if (promises == null) {
-			return null;
-		}
-	
-		if (Object.prototype.toString.call(promises) !== "[object Array]") {
+	EZDB.prototype.wait = function(promises) {
+		if (datatypeof(promises) !== "[object Array]") {
 			promises = [promises];
 		}
 		
@@ -204,8 +222,9 @@
 	
 	Database.prototype.drop = function() {
 		var self = this;
+		
 		if (!self._closed) {
-			throw "Database should be closed before dropping it!";
+			throw "Database must be closed before it can be dropped!";
 		}
 		
 		var promise = new Promise(function(resolve, reject) {
@@ -213,13 +232,15 @@
 		
 			request.onsuccess = function(e) {
 				delete window.ezdb._dbs[self._name];
-				resolve("Deleted database successfully.");
+				resolve("Database deleted successfully.");
 			}
 			request.onerror = function(e) {
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to drop database " + self._name + "!");
 			}
 			request.onblocked = function(e) {
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("Cannot drop database " + self._name + " because it is blocked!");
 			}
 		});
 		
@@ -255,10 +276,10 @@
 		}
 		
 		self._dmlCounter++;
-		var transaction = self._db.transaction([self._name], READWRITE);
-		var table = transaction.objectStore(self._name);
 		
 		var promise = new Promise(function(resolve, reject) {
+			var transaction = self._db.transaction([self._name], READWRITE);
+			var table = transaction.objectStore(self._name);
 			table.clear();
 			
 			transaction.oncomplete = function(e) {
@@ -267,11 +288,13 @@
 			};
 			transaction.onerror = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to perform this transaction!");
 			};
 			transaction.onabort = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("This transaction has been aborted!");
 			};
 		});
 		
@@ -285,20 +308,22 @@
 			throw "Database " + self._dbName + " is closed!";
 		}
 		
-		if (Object.prototype.toString.call(data) !== "[object Array]") {
+		if (datatypeof(data) !== "[object Array]") {
 			if (typeof data !== "object") {
-				throw "Bad parameters...";
+				throw "Bad parameters for insert...";
 			}
 			data = [data];
 		}
 		
 		self._dmlCounter++;
-		var transaction = self._db.transaction([self._name], READWRITE);
-		var table = transaction.objectStore(self._name);
-		var keys = new Array(data.length);
-		var keysCounter = 0;
 		
 		var promise = new Promise (function(resolve, reject) {
+			var transaction = self._db.transaction([self._name], READWRITE);
+			var table = transaction.objectStore(self._name);
+			var keys = new Array(data.length);
+			var keysCounter = 0;
+			
+			
 			for (var i=0; i < data.length; i++) {
 				var request = table.add(data[i]);
 				request.onsuccess = function(e) {
@@ -313,11 +338,13 @@
 			};
 			transaction.onerror = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to perform an insert operation!");
 			};
 			transaction.onabort = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("This insert operation has been aborted!");
 			};
 		});
 		
@@ -335,20 +362,21 @@
 			return new Update(self._db, self);
 		}
 		
-		if (Object.prototype.toString.call(data) !== "[object Array]") {
+		if (datatypeof(data) !== "[object Array]") {
 			if (typeof data !== "object") {
-				throw "Bad parameters...";
+				throw "Bad parameters for update...";
 			}
 			data = [data];
 		}
 		
 		self._dmlCounter++;
-		var transaction = self._db.transaction([self._name], READWRITE);
-		var table = transaction.objectStore(self._name);
-		var keys = new Array(data.length);
-		var keysCounter = 0;
 		
 		var promise = new Promise (function(resolve, reject) {
+			var transaction = self._db.transaction([self._name], READWRITE);
+			var table = transaction.objectStore(self._name);
+			var keys = new Array(data.length);
+			var keysCounter = 0;
+			
 			for (var i=0; i < data.length; i++) {
 				var request = table.put(data[i]);
 				request.onsuccess = function(e) {
@@ -363,11 +391,13 @@
 			};
 			transaction.onerror = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to perform an update operation!");
 			};
 			transaction.onabort = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("This update operation has been aborted!");
 			};
 		});
 		
@@ -385,20 +415,21 @@
 			return new Delete(self._db, self);
 		}
 		
-		if (Object.prototype.toString.call(keys) !== "[object Array]") {
+		if (datatypeof(keys) !== "[object Array]") {
 			if (typeof keys === "object") {
-				throw "Bad parameters...";
+				throw "Bad parameters for delete...";
 			}
 			keys = [keys];
 		}
 		
 		self._dmlCounter++;
-		var transaction = self._db.transaction([self._name], READWRITE);
-		var table = transaction.objectStore(self._name);
 		
 		var promise = new Promise (function(resolve, reject) {
+			var transaction = self._db.transaction([self._name], READWRITE);
+			var table = transaction.objectStore(self._name);
+			
 			for (var i=0; i < keys.length; i++) {
-				table.delete(keys[i]);
+				table["delete"](keys[i]);
 			}
 			
 			transaction.oncomplete = function(e) {
@@ -407,11 +438,13 @@
 			};
 			transaction.onerror = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to perform a delete operation!");
 			};
 			transaction.onabort = function(e) {
 				self._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("This delete operation has been aborted!");
 			};
 		});
 		
@@ -430,15 +463,15 @@
 	
 	//Query
 	/*
-	 * All keys <= x IDBKeyRange.upperBound(x)
-	 * All keys < x IDBKeyRange.upperBound(x, true)
-	 * All keys >= y IDBKeyRange.lowerBound(y)
-	 * All keys > y IDBKeyRange.lowerBound(y, true)
+	 * All keys <= x         IDBKeyRange.upperBound(x)
+	 * All keys <  x         IDBKeyRange.upperBound(x, true)
+	 * All keys >= y         IDBKeyRange.lowerBound(y)
+	 * All keys >  y         IDBKeyRange.lowerBound(y, true)
 	 * All keys >= x && <= y IDBKeyRange.bound(x, y)
 	 * All keys >  x && <  y IDBKeyRange.bound(x, y, true, true)
 	 * All keys >  x && <= y IDBKeyRange.bound(x, y, true, false)
 	 * All keys >= x && <  y IDBKeyRange.bound(x, y, false, true)
-	 * The key = z	IDBKeyRange.only(z)
+	 * The key   = z	     IDBKeyRange.only(z)
 	 */
 	function Query(db, table) {
 		var self = this;
@@ -656,7 +689,8 @@
 					resolve(e.target.result);
 				}
 				request.onerror = function(e) {
-					reject(e.target.error);
+					debug(e.target.error);
+					reject("An error occurred while trying to perform this query!");
 				}
 			});
 		}
@@ -706,7 +740,7 @@
 							
 							results_counter++;
 						}
-						cursor.continue();
+						cursor["continue"]();
 					}
 				}
 				
@@ -720,13 +754,15 @@
 					if (tranmode === READWRITE) {
 						self._table._dmlCounter--;
 					}
-					reject(e.target.error);
+					debug(e.target.error);
+					reject("An error occurred while trying to perform this query!");
 				};
 				transaction.onabort = function(e) {
 					if (tranmode === READWRITE) {
 						self._table._dmlCounter--;
 					}
-					reject(e.target.error);
+					debug(e.target.error);
+					reject("This query has been aborted!");
 				};
 			});
 		}
@@ -747,8 +783,8 @@
 	
 	Update.prototype.index = function(indexName) {
 		var self = this;
-		
 		self._index = indexName;
+		
 		return self;
 	}
 	
@@ -812,7 +848,7 @@
 	Update.prototype.set = function(set) {
 		var self = this;
 		
-		if (set == null || typeof set !== "object" || Object.prototype.toString.call(set) === "[object Array]") {
+		if (set == null || typeof set !== "object" || datatypeof(set) === "[object Array]") {
 			throw "A set of changes should be specified as a json object!";
 		}
 		
@@ -828,7 +864,7 @@
 			throw "A set of deletions should be specified either as a single column name, an array of column names or a json object!";
 		}
 		
-		if (typeof del !== "object" && Object.prototype.toString.call(del) !== "[object Array]") {
+		if (typeof del !== "object" && datatypeof(del) !== "[object Array]") {
 			del = [del];
 		}
 		
@@ -845,10 +881,11 @@
 			throw "A set of changes or a deletion set should be specified!";
 		}
 		
+		self._table._dmlCounter++;
+		
 		promise = new Promise(function(resolve, reject) {
 			var data = [];
 			
-			self._table._dmlCounter++;
 			var transaction = self._db.transaction([self._table._name], READWRITE);
 			var table = transaction.objectStore(self._table._name);
 			var request = null;
@@ -880,7 +917,7 @@
 					}
 					
 					if (self._del != null) {
-						if (Object.prototype.toString.call(self._del) === "[object Array]") {
+						if (datatypeof(self._del) === "[object Array]") {
 							for(var i=0; i < self._del.length; i++) {
 								var key = self._del[i]
 								delete updateData[key];
@@ -903,7 +940,7 @@
 						data.push(e.target.result);
 					};
 					
-					cursor.continue();
+					cursor["continue"]();
 				}
 			};
 			
@@ -913,11 +950,13 @@
 			};
 			transaction.onerror = function(e) {
 				self._table._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to perform this update operation!");
 			};
 			transaction.onabort = function(e) {
 				self._table._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("This update operation has been aborted!");
 			};
 		});
 		
@@ -1014,10 +1053,11 @@
 		var self = this;
 		var promise;
 		
+		self._table._dmlCounter++;
+		
 		promise = new Promise(function(resolve, reject) {
 			var data = [];
 			
-			self._table._dmlCounter++;
 			var transaction = self._db.transaction([self._table._name], READWRITE);
 			var table = transaction.objectStore(self._table._name);
 			var keyPath = table.keyPath;
@@ -1041,10 +1081,10 @@
 					
 					if (self._filter === null || self._filter(getter)) {
 						data.push(deleteData[keyPath]);
-						cursor.delete(deleteData);
+						cursor["delete"](deleteData);
 					}
 					
-					cursor.continue();
+					cursor["continue"]();
 				}
 			};
 			
@@ -1054,11 +1094,13 @@
 			};
 			transaction.onerror = function(e) {
 				self._table._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to perform this delete operation!");
 			};
 			transaction.onabort = function(e) {
 				self._table._dmlCounter--;
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("This delete operation has been aborted!");
 			};
 		});
 		
@@ -1088,7 +1130,7 @@
 			throw "Table '" + tableName + "' was not found in database " + self._database._name + "!"; 
 		}
 		
-		if (Object.prototype.toString.call(data) !== "[object Array]") {
+		if (datatypeof(data) !== "[object Array]") {
 			if (typeof data !== "object") {
 				throw "Bad parameters for transaction insert...";
 			}
@@ -1109,7 +1151,7 @@
 			throw "Table '" + tableName + "' was not found in database " + self._database._name + "!"; 
 		}
 		
-		if (Object.prototype.toString.call(data) !== "[object Array]") {
+		if (datatypeof(data) !== "[object Array]") {
 			if (typeof data !== "object") {
 				throw "Bad parameters for transaction update...";
 			}
@@ -1129,7 +1171,7 @@
 			throw "Table '" + tableName + "' was not found in database " + self._database._name + "!"; 
 		}
 		
-		if (Object.prototype.toString.call(keys) !== "[object Array]") {
+		if (datatypeof(keys) !== "[object Array]") {
 			if (typeof keys === "object") {
 				throw "Bad parameters...";
 			}
@@ -1181,7 +1223,7 @@
 						break;
 					case "remove":
 						self._resultset[unit._tableName].remove.push(unit._data);
-						table.delete(unit._data);
+						table["delete"](unit._data);
 						break;
 				}
 			}
@@ -1198,21 +1240,22 @@
 					var counter = tables[tableName];
 					self._database.table(tableName)._dmlCounter -= counter;
 				}
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("An error occurred while trying to perform this transaction!");
 			};
 			transaction.onabort = function(e) {
 				for (var tableName in tables) {
 					var counter = tables[tableName];
 					self._database.table(tableName)._dmlCounter -= counter;
 				}
-				reject(e.target.error);
+				debug(e.target.error);
+				reject("This transaction has been aborted!");
 			};
 		});
 		
 		return promise;
 	}
 	
-	window.ezdb = new DBManager();
+	window.ezdb = new EZDB();
 	
 }) (window);
-
