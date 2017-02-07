@@ -1,7 +1,7 @@
 /* EZDB - Yet Another Wrapper for IndexedDB
- * Version 1.1.0
+ * Version 1.2.0
  * 
- * Copyright (c) 2015, 2016 Felipe Dias
+ * Copyright (c) 2015, 2016, 2017 Felipe Dias
  * 
  * Special thanks to Aaron Powell, whose 'db.js' was the inspiration for 
  * this project!
@@ -137,7 +137,7 @@
 			
 			request.onblocked = function(e) { // If some other tab is loaded with the db, then it needs to be closed before we can proceed.
 				debug(e.target.error);
-				reject("Please close all other tabs with this site open!");
+				reject("Please close all other tabs where this database is open!");
 			};
 			
 			request.onsuccess = function(e) {
@@ -232,7 +232,7 @@
 		
 			request.onsuccess = function(e) {
 				delete window.ezdb._dbs[self._name];
-				resolve("Database deleted successfully.");
+				resolve("Database successfully deleted.");
 			}
 			request.onerror = function(e) {
 				debug(e.target.error);
@@ -417,7 +417,7 @@
 		
 		if (datatypeof(keys) !== "[object Array]") {
 			if (typeof keys === "object") {
-				throw "Bad parameters for delete...";
+				throw "Bad parameters for remove...";
 			}
 			keys = [keys];
 		}
@@ -439,12 +439,12 @@
 			transaction.onerror = function(e) {
 				self._dmlCounter--;
 				debug(e.target.error);
-				reject("An error occurred while trying to perform a delete operation!");
+				reject("An error occurred while trying to perform a remove operation!");
 			};
 			transaction.onabort = function(e) {
 				self._dmlCounter--;
 				debug(e.target.error);
-				reject("This delete operation has been aborted!");
+				reject("This remove operation has been aborted!");
 			};
 		});
 		
@@ -1064,24 +1064,29 @@
 			var request = null;
 			
 			if (self._index === null) {
-				request = table.openCursor(self._bounds);
+				request = self._filter === null ? table.openKeyCursor(self._bounds) : table.openCursor(self._bounds);
 			}
 			else {
 				var index = table.index(self._index);
-				request = index.openCursor(self._bounds);
+				request = self._filter === null ? index.openKeyCursor(self._bounds) : index.openCursor(self._bounds);
 			}
 			
 			request.onsuccess = function(e) {
 				var cursor = e.target.result;
 				if (cursor) {
-					var deleteData = cursor.value;
-					var getter = function(key) {
-						return deleteData[key];
-					};
+					data.push({ "key" : cursor.key, "primaryKey" : cursor.primaryKey});
 					
-					if (self._filter === null || self._filter(getter)) {
-						data.push(deleteData[keyPath]);
-						cursor["delete"](deleteData);
+					if (self._filter === null) {
+						cursor["delete"]();	
+					}
+					else {
+						var getter = function(key) {
+							return cursor.value[key];
+						};
+					
+						if (self._filter(getter)) {
+							cursor["delete"]();
+						}
 					}
 					
 					cursor["continue"]();
@@ -1095,12 +1100,12 @@
 			transaction.onerror = function(e) {
 				self._table._dmlCounter--;
 				debug(e.target.error);
-				reject("An error occurred while trying to perform this delete operation!");
+				reject("An error occurred while trying to perform this remove operation!");
 			};
 			transaction.onabort = function(e) {
 				self._table._dmlCounter--;
 				debug(e.target.error);
-				reject("This delete operation has been aborted!");
+				reject("This remove operation has been aborted!");
 			};
 		});
 		
