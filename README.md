@@ -10,7 +10,7 @@ This library's look'n'feel was strongly based upon [Aaron Powell's db.js](https:
 Before You Begin
 ================
 
-You may test the examples below using your browser's Developer Tools. If that is Google Chrome, use the Console tab for the inputs and check the Resources tab to monitor your database. Bear in mind, however, that some of the changes, mainly those that affect the sructure of a table, might only be shown after you refresh the page (closing and reopening it also works). Some other time, refreshing the database (by right-clicking on it and choosing "Refresh IndexedDB") may suffice.
+You may test the examples below using your browser's Developer Tools. If that is Google Chrome, use the Console tab for the inputs and check the "Application" tab (or "Resources" in older versions) to monitor your database. Bear in mind, however, that some of the changes, mainly those that affect the structure of a table, might only be shown after you refresh the page (closing and reopening it also works). Some other time, refreshing the database (by right-clicking on it and choosing "Refresh IndexedDB") may suffice.
 
 Usage
 =====
@@ -47,15 +47,18 @@ Now, the next thing to do is create you DATABASE and the TABLES (stores) within 
 	    }
 	}).then(function(db) {
 	    database = db;
+	    console.log("Database has been created/opened!");
 	});
 
-In this example, we are creating a new database called "MyFirstDatabase" containing two tables named "person" and "email". Their "primary keys" are the columns "id" and "key", respectively. Those tables also have indexes, some unique, some not, which will be used for querying purposes.
+In this example, we are creating a new database called "MyFirstDatabase" containing two tables named "person" and "email". Their "primary keys" are the columns "id" and "key", respectively. Those tables also have indexes - some unique, some not - which shall be used for querying purposes.
 
-Note: Just like a regular NoSQL database (like Cassandra), we do not specify all the columns in a table. This means that a "row" may vary from another in the number of attributes, even though they are in the same table. This will become more clear in future examples.
+Note: although the name given by IndexedDB is ObjectStore, I will use the term "table" to refer to these objects.
 
-Since we are creating a new database from scratch, I used the number "1" as its version. Later on, I will show you how to make STRUCTURAL changes (new tables, indexes etc) to a pre-existent database, which will require an increment in the version number in order for the changes to take effect. 
+Note: Just like a regular NoSQL database (like Cassandra), we do not specify all the columns in a table. This means that "rows" may vary from one another in the number of attributes, even though they are in the same table. This will become clearer in future examples.
 
-The result of "ezdb.open" is a [Promise](https://www.promisejs.org/). Since the creation/opening of a database is an asynchronous process, we have to wait for it to finish before proceeding. But how can we be sure that it has completed succesfully? Simple! Since the returned object is a Promise, we just have to call its "then" method and tell it what needs to be done when the Promise is "resolved", i.e., finishes processing. In our case, we are to save the recently created/opened database in a global variable called "database".
+Since we are creating a new database from scratch, I used the number "1" as its version. Later on, I will show you how to make STRUCTURAL changes (new tables, indexes etc.) to a pre-existent database, which will require an increment in the version number in order for the changes to take effect. 
+
+The result of "ezdb.open" is a [Promise](https://www.promisejs.org/). Since the creation/opening of a database is an asynchronous process, we have to wait for it to finish before proceeding. But how can we be sure that it has completed successfully? Simple! Since the returned object is a Promise, we just have to call its "then" method with a function as its argument. This function carries the piece of code that shall be called once the Promise is "resolved", i.e., finishes processing. In our case, we are to save the recently created/opened database in a global variable called "database".
 
 Note: Optionally, you can pass a second function as a parameter of "then" for error handling:
 
@@ -96,7 +99,7 @@ To insert a new record, all we need is a JSON object, like this:
 	};
 	database.table("person").insert(person);
 
-In the example above, we created a new person JSON object with some attributes, and inserted it in the table "person". It is important to note that since "id" is a non-autoincremental primary key, it is mandatory to inform its value.
+In the example above, we created a new "person JSON object" with some attributes, and inserted it in the table "person". It is important to note that since "id" is not an auto incremental primary key, it is mandatory to inform its value.
 
 Notice also that the attributes "birthdate" and "hobbies" do not have indexes attached to them. This means they will be informational columns, not searchable ones, i.e., we will not be able to look up a record by them, but they will be there all the same.
 
@@ -111,9 +114,9 @@ Well, sometimes we do not want to insert records one at a time. In these cases, 
 
 Note: when inserting an array of objects, the insertion is executed within a transaction. This means that if ANY of the records results in an insertion error (e.g.: key duplicates), NONE of the records will be inserted. If you wish to pass by this behaviour, just insert one record at a time in a loop.
 
-As mentioned before, IndexedDB is NoSQL and records may have a different number of attributes from each other. In the above example, I just left out the attributes "birthdate" and "hobbies", even though our dear "John Doe" (inserted earlier) has them, and that is completely alright!
+As mentioned before, IndexedDB is NoSQL and records may have a different number of attributes from each other. In the above example, I just left out the attributes "birthdate" and "hobbies", even though our dear "John Doe" (inserted earlier) has them, and that is completely fine!
 
-The returned value of the insert method is also a Promise and so we may call its "then" method to make sure the record was inserted before proceeding. Calling the "then" method is also important when you are dealing with an auto-incremetal primary key, as it is the case of the table "email":
+The returned value of the insert method is also a Promise. So we may call its "then" method to make sure the record was inserted before proceeding. Calling the "then" method is also important when you are dealing with an auto incremental primary key, as it is the case of the table "email":
 
 	database.table("email").insert( { email : "johndoe@somewhere.com", person_id : 111 } )
 	.then(function(keys) {
@@ -121,7 +124,7 @@ The returned value of the insert method is also a Promise and so we may call its
 		//Do something else
 	});
 
-In the above example, we are inserting a new email for John Doe, but since the table "email" has an auto-incremental primary key, we would not know which key value was generated for this record. To find it out, we just have to call the Promise's "then" method and it will provide us an array of keys in the same order the objects were inserted. In this case, since the table was empty, the number 1 was assigned to the record.
+In the above example, we are inserting a new email for John Doe, but since the table "email" has an auto-incremental primary key, we would not know which key value was generated for this record. To find it out, we simply call the Promise's "then" method and it will provide us an array of keys in the same order the objects were inserted. In this case, since the table was empty, the number 1 was assigned to the record.
 
 Note: even though we are inserting only ONE record and not an array of "emails", the resulting "keys" of the "then" method will always be an array.
 
@@ -145,11 +148,11 @@ Note: even though a key is unique per record, the result of a query will always 
 
 Here is a list of possible configurations for your query, followed by a bunch of examples. Try to run some of them and see if you understand what is going on.
 
-- desc(): Retrieves the results in descending order by key or by index, if one is specified. The default behaviour is asceding order;
+- desc(): Retrieves the results in descending order by key or by index, if one is specified. The default behaviour is ascending order;
 - distinct(): Retrieves only the records with distinct index value, i.e., if two records have the same value in the specified index column, only the one with the lowest key is returned; if an index is not specified, "distinct" has no effect;
-- first("number"): Retrieves only the first "number" records. Deafult is "0" for ALL records;
+- first("number"): Retrieves only the first "number" records. Default is "0" for ALL records;
 - index("index_name"): Makes a query by the identified "index_name" and not by the key, which is the default behaviour;
-- keysonly(): Retrieves an array containg only the recods keys, not the entire record;
+- keysonly(): Retrieves an array containing only the keys, not the entire record;
 - keyvalue(): Retrieves an array of the type key-value, where "key" is the primary key of the record and "value" is the value of the specified index column. For example, if "age" is specified as the query index, the returned object for "Anne" (see insertions above) is { key : 222, value : 22 }, since its age is 22.
 Note: "keyvalue" can only be used alongside an index.
 - count(): Retrieves the number of records in the database. "count" can only go alone or alongside index and/or bounding options.
@@ -317,7 +320,7 @@ Examples:
 		});
 	```
 
-13. Counts the number of records in the database where age is exclusively grater than 28 and retrieves the number:
+13. Counts the number of records in the database where age is exclusively greater than 28 and retrieves the number:
 
 	```javascript
 	database.table("person")
@@ -331,7 +334,7 @@ Examples:
 		});
 	```
 
-14. Returns all records where "firstname" starts with "A" or "lastname" starts with "M":
+14. Returns all records where "firstname" starts with an "A" or "lastname" starts with an "M":
 
 	```javascript
 	database.table("person")
@@ -345,7 +348,7 @@ Examples:
 		});
 	```
 
-15. The same as the above example, except that only the keys are returned, not the entire record:
+15. Same as the above example, except that only the keys are returned, not the entire record:
 
 	```javascript
 	database.table("person")
@@ -362,7 +365,7 @@ Examples:
 
 ## Updating a record
 
-Imagine taht one year has passed and Mary Kovacs is now 67 years old. How do we change tha "age" value for her in our records? The syntax resembles the one used for insertion:
+Imagine that one year has passed and Mary Kovacs is now 67 years old. How do we change the "age" value for her in our records? The syntax resembles the one used for insertion:
 
 	database.table("person")
 		.update({
@@ -377,7 +380,7 @@ Imagine taht one year has passed and Mary Kovacs is now 67 years old. How do we 
 
 Again, the result of the update call is a Promise, which will always return an array with the affected keys. And yes, you can pass an array of objects to the update method, just like in insert. Just remember that this will happen within a transaction, if an error is to be thrown for ANY record, NONE will be updated.
 
-Now, wait a minute, if I only want to change her age, why do I need to put all the other attributes in the JSON object? Because "update" considers the whole thing! If you do not specify the other attributes, they will be completely erased! Notice that they will not become "null", they will just disappear.
+Now, wait a minute, if I only want to change her age, why do I need to put all the other attributes in the JSON object? Because "update" considers the whole thing! If you do not specify the other attributes, they will be completely erased! Notice that they will not become "null", they will simply disappear.
 
 We have learned that, when using update, it is mandatory to specify all the fields, including its primary key. So, in the case of our table "email", you would have to query it first in order to find out the generated primary key for a given record (or just save it somewhere in the "then" method after inserting it).
 
@@ -417,13 +420,13 @@ OK, imagine a scenario where I do not have all the information about a record, I
 
 As you might be getting tired already, yes, the returned value of this update call is also a Promise, which will bring up an array of the affected keys.
 
-Now, let us break down the code into pieces for a better understading, shall we?
+Now, let us break down the code into pieces for a better understanding, shall we?
 
 First, we call the table's update method just like before, except that this time it does not have any parameters. Then, we specify what we want to "set" (in our example, it is the attribute "age"). We could have used a fixed number, but then everybody would have been updated to the same age. No, what we wanted was to increase the person's previous age by one, so we pass a function that will have access to all of the record's attributes and will decide which changes should be made. Notice that the access to the attributes is made by a "getter" function, so that the actual object is not exposed. You can call *getter* with any of the records attribute.
 
 After specifying what we want to "set", our "update" is configured and can be executed. To do that, we just call its "go" method, just like we did with queries.
 
-This kind of update can also be used alongside indexes and boundings. You can use the same syntax used for queries, as shown below:
+This kind of update can also be used alongside indexes and bounding. You can use the same syntax used for queries, as shown below:
 
 1. Sets everybody who is 28 years to an age of 56 and a masculine gender:
 
@@ -469,8 +472,8 @@ This kind of update can also be used alongside indexes and boundings. You can us
 		});
 	```
 
-4. The "del" method also accpets an array of attributes that should be erased:
-Note: the **affected keys* array returned in the Promise will contain ALL the keys, even those whose records were already missing the removed attribute. This is because the entire table is traversed when an index or boundings are not specified.
+4. The "del" method also accepts an array of attributes that should be erased:
+Note: the **affected keys** array returned in the Promise will contain ALL the keys, even those whose corresponding records were missing the removed attribute. This is because the entire table is traversed when an index or bounding is not specified.
 
 	```javascript
 	database.table("person")
@@ -481,7 +484,7 @@ Note: the **affected keys* array returned in the Promise will contain ALL the ke
 
 ## Advanced removal
 
-Very similitar to advanced updating and querying, I believe that at this point you will be able to figure out what the code below does:
+Very similar to advanced updating and querying, I believe that at this point you will be able to figure out what the code below does:
 
 	database.table("person")
 		.remove()
@@ -492,16 +495,18 @@ Very similitar to advanced updating and querying, I believe that at this point y
 		})
 		.go()
 		.then(function(results) {
-			console.log(results);
+			console.log(results);	// [ { key : 56, primaryKey : 121 } ];
+						// key corresponds to the value of the index (age) for the removed record
+						// primaryKey is, of course, the removed record's primary key value
 		});
 
 If you think that this will only remove those records where age is 56 and first name is "Grace", then you guessed it right!
 
-The only important note here is that, differently from other Promises, this one will not return only the records' primary keys, but the whole record itself!
+The only important note here is that, the "results" returned by the Promise is a bit different from previous sections: it consists of a list of objects with the attributes "key" and "primaryKey". If an index is specified, "key" will hold the value of the index for that record; if not, it will be the same as "primaryKey".
 
 ## Transactions
 
-I will not go into details about transactions. If you are used to databases, you know how they work. Put simply, a transaction is a group of commands garanteed to be ENTIRELY persisted in the database or NOT AT ALL: they either succeed together or fail together.
+I will not go into details about transactions. If you are used to databases, you know how they work. Put simply, a transaction is a group of commands guaranteed to be ENTIRELY persisted in the database or NOT AT ALL: they either succeed together or fail together.
 
 This is exactly what happens, as mentioned earlier, when you pass an array to the insert, update or remove methods. The difference here is that you can now combine those calls and use different tables:
 
@@ -548,7 +553,7 @@ Anyway, the Promise resulting from this operation will retrieve the Table "perso
 
 ## Waiting for parallel Promises to finish
 
-As mentioned earlier, you can insert, update or remove records within a foor loop to avoid the transactional behaviour. Although parallel, what if we need to WAIT until all of the operations are finished before proceeding? All you have to do is use the ezdb.wait method. Let us write an example with a loop:
+As mentioned earlier, you can insert, update or remove records within a for loop to avoid the transactional behaviour. Although parallel, what if we need to WAIT until all of the operations are finished before proceeding? All you have to do is use the ezdb.wait method. Let us write an example with a loop:
 
 	var people = [
 		{ id : 45, firstname : "Joanne" , lastname : "Pope"     , age : 72, gender : "F" },
@@ -602,7 +607,7 @@ Now suppose we need to change our database's structure like: create new tables/d
 	    database = db;
 	});
 
-As you can see, this step is incremental: you dot not have to repeat the old structure, just the changes. Do not worry if you do specify some part of the old strucutre again because they will just be ignored.
+As you can see, this step is incremental: you do not have to repeat the old structure, just the changes. Do not worry if you do specify some part of the old structure again because they will just be ignored.
 
 In our example, we created a new index for table "person", removed its index called "age" and dropped the table "email". These, I believe, are all the changes that can be made. Of course, if you need a new table, just add it there.
 
