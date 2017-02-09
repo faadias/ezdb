@@ -1077,7 +1077,7 @@
 					data.push({ "key" : cursor.key, "primaryKey" : cursor.primaryKey});
 					
 					if (self._filter === null) {
-						cursor["delete"]();	
+						table["delete"](cursor.primaryKey);	
 					}
 					else {
 						var getter = function(key) {
