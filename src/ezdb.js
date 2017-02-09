@@ -1,5 +1,5 @@
 /* EZDB - Yet Another Wrapper for IndexedDB
- * Version 1.2.0
+ * Version 1.2.1
  * 
  * Copyright (c) 2015, 2016, 2017 Felipe Dias
  * 
