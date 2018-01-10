@@ -74,13 +74,22 @@ The result of _ezdb.open_ is a [Promise](https://www.promisejs.org/). Since the 
 
 Here is a list of other useful methods the _database_ object offers:
 
-	database.name();				//Retrieves the database name: _MyFirstDatabase_
-	database.version();				//Retrieves the database version: 1
-	database.tables();				//Retrieves an array with the names of all this database's tables: ["person","email"]
-	database.table("tableName");	//Retrieves a Table object for querying, inserting, removing and updating purposes (see the topics below for usage examples)
-	database.close();				//Immediately closes this database, allowing you to update or drop it; while closed, it is not possible to use the database for querying etc
-	database.isClosed();			//Tells whether this database is closed or not; another way to test this is by calling 'ezdb.isClosed("databaseName")'
-	database.drop();				//Drops the entire database; this is only possible if the database is closed. Example: database.close().drop().
+	database.name();                //Retrieves the database name: "MyFirstDatabase"
+	database.version();             //Retrieves the database version: 1
+	database.tables();              //Retrieves an array with the names of all this
+	                                //database's tables: ["person","email"]
+	database.table("tableName");    //Retrieves a Table object for querying, inserting,
+	                                //removing and updating purposes (see the topics
+					//below for usage examples)
+	database.close();               //Immediately closes this database, allowing you to
+	                                //update or drop it; while closed, it is not possible
+					//to use the database for querying etc
+	database.isClosed();            //Tells whether this database is closed or not;
+	                                //another way to test this is by calling
+					//ezdb.isClosed("databaseName")
+	database.drop();                //Drops the entire database; this is only possible
+	                                //if the database is closed.
+					//Example: database.close().drop().
 
 OK, now that we know how to handle our database, how about inserting some data into our tables?
 
