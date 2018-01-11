@@ -7,26 +7,13 @@ enum TransactionType {
 class DBManager {
 	private static instance : DBManager;
 	private dbs : Map<string,Database>;
-	private debug : boolean;
 
 	constructor() {
 		this.dbs = new Map<string,Database>();
-		this.debug = false;
 	}
 
 	static get Instance() {
 		return DBManager.instance = DBManager.instance || new DBManager();
-	}
-
-	get Debug() {
-		return this.debug;
-	}
-	set Debug(value) {
-		this.debug = value;
-	}
-
-	log(error : string) {
-		if (this.Debug) console.log(error);
 	}
 
 	has(dbName : string) : boolean {
@@ -41,21 +28,20 @@ class DBManager {
 			return this.get(dbName)!.Closed;
 		}
 
-		throw `Database '${dbName}' could not be found!`;
+		throw new Error(`Database ${dbName} could not be found!`);
 	}
 
-	open(config : DatabaseConfig) {
+	open(dbName : string, dbVersion : number=1, config? : DatabaseConfig) {
 		let manager : DBManager = this;
-
+		
 		let promise = new Promise<Database>((resolve, reject) => {
-			let dbName = config.database;
-			let dbVersion = config.version;
-			let tableSchemas = config.tables;
-			
 			let request = indexedDB.open(dbName, dbVersion);
-			
+
 			request.onupgradeneeded = () => {
+				if (!config) return;
+
 				let idbDatabase : IDBDatabase = request.result;
+				let tableSchemas = config.tables;
 
 				for (let tableName in tableSchemas) {
 					let tableSchema = tableSchemas[tableName];
@@ -63,14 +49,14 @@ class DBManager {
 					
 					let tableExistsInDB = idbDatabase.objectStoreNames.contains(tableName);
 					if (tableExistsInDB) {
+						if (tableSchema.drop) {
+							idbDatabase.deleteObjectStore(tableName);
+							continue;
+						}
+
 						idbTable = idbDatabase
 							.transaction(tableName, TransactionType.VERSIONCHANGE)
 							.objectStore(tableName);
-						
-						if (tableSchema.drop) {
-							idbDatabase.deleteObjectStore(tableName);
-							return;
-						}
 					}
 					else {
 						idbTable = idbDatabase.createObjectStore(tableName, tableSchema.key);
@@ -95,9 +81,7 @@ class DBManager {
 			};
 			
 			request.onblocked = () => {
-				// If some other tab is loaded with the db, then it needs to be closed before we can proceed.
-				manager.log(request.result.error);
-				reject(`Please close all other tabs where this database '${dbName}' is open!`);
+				reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
 			};
 			
 			request.onsuccess = () => {
@@ -108,10 +92,39 @@ class DBManager {
 			}
 
 			request.onerror = () => {
-				manager.log(request.result.error);
-				reject(`An error occurred while trying to open database '${dbName}'!`);
+				reject(new Error(`An error occurred when trying to open, create or update database ${dbName}!`));
 			}
 		});
+		return promise;
+	}
+
+	drop(dbName : string) {
+		let manager = this;
+		let database = manager.dbs.get(dbName);
+
+		if (!database) {
+			throw new Error(`No database named ${dbName} is currently loaded in EZDB! Can't drop it...`);
+		}
+
+		if (!database.Closed) {
+			throw new Error(`Database ${dbName} must be closed before it can be dropped!`);
+		}
+
+		let promise = new Promise<boolean>((resolve, reject) => {
+			let request = indexedDB.deleteDatabase(dbName);
+		
+			request.onsuccess = () => {
+				manager.dbs.delete(dbName);
+				resolve(true);
+			}
+			request.onerror = () => {
+				reject(new Error(`An error occurred when trying to drop database ${dbName}!`));
+			}
+			request.onblocked = () => {
+				reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
+			}
+		});
+		
 		return promise;
 	}
 }

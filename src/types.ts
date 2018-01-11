@@ -1,6 +1,4 @@
 interface DatabaseConfig {
-	database : string,
-	version : number,
 	tables : {
 		[key : string] : TableConfig
 	}

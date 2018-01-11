@@ -1,10 +1,7 @@
 const ezdb : DBManager = DBManager.Instance;
-ezdb.Debug = true;
 
 let database : Database;
-ezdb.open({
-	database : "MyFirstDatabase",
-	version : 1,
+ezdb.open("MyFirstDatabase", 1, {
 	tables : {
 		person : {
 			key : { keyPath : "id" },
@@ -31,6 +28,25 @@ ezdb.open({
 	document.body.innerText += "\r\nclosed: " + database.Closed;
 	document.body.innerText += "\r\ntables: " + database.TableNames;
 	document.body.innerText += "\r\n";
+
+	doStuff();
 }).catch(error => {
 	document.body.innerText = error;
 });
+
+function doStuff() {
+	database.table("person").truncate();
+	database.table("email").truncate();
+
+	database.table("person").insert(
+		{ id : 222, firstname : "Anne" , lastname : "Millard"     , age : 22, gender : "F" },
+		{ id : 121, firstname : "Grace", lastname : "Minitz"      , age : 28, gender : "F" },
+		{ id : 311, firstname : "Jean" , lastname : "Fauchelevent", age : 28, gender : "M" },
+		{ id : 562, firstname : "Mary" , lastname : "Kovacs"      , age : 66, gender : "F" }
+	).then(keys => console.log(keys));
+
+	database.table("email").insert(
+		{ email : "johndoe@somewhere.com", person_id : 111 }
+	).then(keys => console.log(keys));
+}
+
