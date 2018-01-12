@@ -31,20 +31,25 @@ class DBManager {
 		throw new Error(`Database ${dbName} could not be found!`);
 	}
 
-	open(dbName : string, dbVersion : number=1, config? : DatabaseConfig) {
-		let manager : DBManager = this;
+	open(dbName : string, dbVersion? : number, config? : DatabaseConfig) {
+		const manager : DBManager = this;
 		
-		let promise = new Promise<Database>((resolve, reject) => {
-			let request = indexedDB.open(dbName, dbVersion);
+
+		if (dbVersion && (!Number.isSafeInteger(dbVersion) || dbVersion < 1)) {
+			throw new Error(`${dbVersion} is not a valid version. It should be an integer greater than 0`);
+		}
+
+		const promise = new Promise<Database>((resolve, reject) => {
+			const request = indexedDB.open(dbName, dbVersion);
 
 			request.onupgradeneeded = () => {
 				if (!config) return;
 
-				let idbDatabase : IDBDatabase = request.result;
-				let tableSchemas = config.tables;
+				const idbDatabase : IDBDatabase = request.result;
+				const tableSchemas = config.tables;
 
 				for (let tableName in tableSchemas) {
-					let tableSchema = tableSchemas[tableName];
+					const tableSchema = tableSchemas[tableName];
 					let idbTable : IDBObjectStore;
 					
 					let tableExistsInDB = idbDatabase.objectStoreNames.contains(tableName);
@@ -54,9 +59,7 @@ class DBManager {
 							continue;
 						}
 
-						idbTable = idbDatabase
-							.transaction(tableName, TransactionType.VERSIONCHANGE)
-							.objectStore(tableName);
+						idbTable = request.transaction.objectStore(tableName);
 					}
 					else {
 						idbTable = idbDatabase.createObjectStore(tableName, tableSchema.key);
@@ -80,27 +83,28 @@ class DBManager {
 				}
 			};
 			
-			request.onblocked = () => {
-				reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
-			};
-			
 			request.onsuccess = () => {
-				let idbDatabase : IDBDatabase = request.result;
-				let database : Database = new Database(idbDatabase);
+				const idbDatabase : IDBDatabase = request.result;
+				const database : Database = new Database(idbDatabase);
 				manager.dbs.set(dbName, database);
-				resolve(database);
-			}
+				return resolve(database);
+			};
 
 			request.onerror = () => {
-				reject(new Error(`An error occurred when trying to open, create or update database ${dbName}!`));
-			}
+				return reject(request.error);
+			};
+
+			request.onblocked = () => {
+				return reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
+			};
 		});
+
 		return promise;
 	}
 
 	drop(dbName : string) {
-		let manager = this;
-		let database = manager.dbs.get(dbName);
+		const manager = this;
+		const database = manager.dbs.get(dbName);
 
 		if (!database) {
 			throw new Error(`No database named ${dbName} is currently loaded in EZDB! Can't drop it...`);
@@ -110,19 +114,19 @@ class DBManager {
 			throw new Error(`Database ${dbName} must be closed before it can be dropped!`);
 		}
 
-		let promise = new Promise<boolean>((resolve, reject) => {
-			let request = indexedDB.deleteDatabase(dbName);
+		const promise = new Promise<boolean>((resolve, reject) => {
+			const request = indexedDB.deleteDatabase(dbName);
 		
 			request.onsuccess = () => {
 				manager.dbs.delete(dbName);
-				resolve(true);
-			}
+				return resolve(true);
+			};
 			request.onerror = () => {
-				reject(new Error(`An error occurred when trying to drop database ${dbName}!`));
-			}
+				return reject(request.error);
+			};
 			request.onblocked = () => {
-				reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
-			}
+				return reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
+			};
 		});
 		
 		return promise;

@@ -22,3 +22,12 @@ interface TableConfig {
 	delindexes? : Array<string>
 	drop? : boolean
 }
+
+interface TableRecord {
+	[key : string] : any
+}
+
+interface DMLReturn {
+	records : number,
+	keys : Array<any>
+}
