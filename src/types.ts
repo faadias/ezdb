@@ -26,8 +26,3 @@ interface TableConfig {
 interface TableRecord {
 	[key : string] : any
 }
-
-interface DMLReturn {
-	records : number,
-	keys : Array<any>
-}

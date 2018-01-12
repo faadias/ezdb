@@ -39,7 +39,7 @@ class Database {
 
 	table(tableName : string) : Table {
 		if (!this.tables.has(tableName)) {
-			throw new Error(`Table ${tableName} doesn't exist in database ${this.Name}!`);
+			throw new EZDBException(`Table ${tableName} doesn't exist in database ${this.Name}!`);
 		}
 
 		return this.tables.get(tableName)!;
@@ -57,7 +57,7 @@ class Database {
 
 	begintran() {
 		if (this.closed) {
-			throw new Error(`Can't start a transaction in database ${this.Name} because it's already closed!`);
+			throw new EZDBException(`Can't start a transaction in database ${this.Name} because it's already closed!`);
 		}
 
 		return new Transaction(this);

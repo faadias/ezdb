@@ -24,20 +24,16 @@ class DBManager {
 	}
 
 	isClosed(dbName : string) : boolean {
-		if (this.has(dbName)) {
-			return this.get(dbName)!.Closed;
+		let database = this.get(dbName);
+		if (database) {
+			return database.Closed;
 		}
 
-		throw new Error(`Database ${dbName} could not be found!`);
+		throw new EZDBException(`Database ${dbName} could not be found!`);
 	}
 
 	open(dbName : string, dbVersion? : number, config? : DatabaseConfig) {
 		const manager : DBManager = this;
-		
-
-		if (dbVersion && (!Number.isSafeInteger(dbVersion) || dbVersion < 1)) {
-			throw new Error(`${dbVersion} is not a valid version. It should be an integer greater than 0`);
-		}
 
 		const promise = new Promise<Database>((resolve, reject) => {
 			const request = indexedDB.open(dbName, dbVersion);
@@ -55,14 +51,24 @@ class DBManager {
 					let tableExistsInDB = idbDatabase.objectStoreNames.contains(tableName);
 					if (tableExistsInDB) {
 						if (tableSchema.drop) {
-							idbDatabase.deleteObjectStore(tableName);
-							continue;
+							try {
+								idbDatabase.deleteObjectStore(tableName);
+								continue;
+							} catch (error) {
+								reject(new EZDBException(`${error} Table: ${tableName}`));
+								break;
+							}
 						}
 
 						idbTable = request.transaction.objectStore(tableName);
 					}
 					else {
-						idbTable = idbDatabase.createObjectStore(tableName, tableSchema.key);
+						try {
+							idbTable = idbDatabase.createObjectStore(tableName, tableSchema.key);
+						} catch (error) {
+							reject(new EZDBException(`${error} Table: ${tableName}`));
+							break;
+						}
 					}
 					
 					if (tableSchema.indexes) {
@@ -95,7 +101,7 @@ class DBManager {
 			};
 
 			request.onblocked = () => {
-				return reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
+				return reject(new EZDBException(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
 			};
 		});
 
@@ -106,26 +112,23 @@ class DBManager {
 		const manager = this;
 		const database = manager.dbs.get(dbName);
 
-		if (!database) {
-			throw new Error(`No database named ${dbName} is currently loaded in EZDB! Can't drop it...`);
-		}
-
-		if (!database.Closed) {
-			throw new Error(`Database ${dbName} must be closed before it can be dropped!`);
-		}
-
 		const promise = new Promise<boolean>((resolve, reject) => {
+			if (!database) {
+				reject(new EZDBException(`No database named ${dbName} is currently loaded in EZDB! Can't drop it...`));
+				return;
+			}
+
 			const request = indexedDB.deleteDatabase(dbName);
 		
 			request.onsuccess = () => {
 				manager.dbs.delete(dbName);
-				return resolve(true);
+				resolve(true);
 			};
 			request.onerror = () => {
-				return reject(request.error);
+				reject(request.error);
 			};
 			request.onblocked = () => {
-				return reject(new Error(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
+				reject(new EZDBException(`Can't drop database ${dbName} because it's not closed (and might be in use by other browser tabs).`));
 			};
 		});
 		
