@@ -114,7 +114,9 @@ class Table {
 		return promise;
 	}
 
-	update(records : Array<TableRecord>, type : UpdateType=UpdateType.UPDATE_EXISTING) {
+	update(records : Array<TableRecord>, type? : UpdateType) {
+		type = type || DBManager.Instance.DefaultUpdateType;
+
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.database.Closed) {
 				reject(new EZDBException(`Database ${this.database.Name} is already closed! No data can be updated in table ${this.name}...`));

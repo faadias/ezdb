@@ -7,9 +7,11 @@ enum TransactionType {
 class DBManager {
 	private static instance : DBManager;
 	private dbs : Map<string,Database>;
+	private defaultUpdateType : UpdateType;
 
 	constructor() {
 		this.dbs = new Map<string,Database>();
+		this.defaultUpdateType = UpdateType.UPDATE_EXISTING;
 	}
 
 	static get Instance() {
@@ -21,6 +23,13 @@ class DBManager {
 	}
 	get(dbName : string) : Database | undefined {
 		return this.dbs.get(dbName);
+	}
+
+	get DefaultUpdateType(){
+		return this.defaultUpdateType;
+	}
+	set DefaultUpdateType(value:UpdateType){
+		this.defaultUpdateType = value;
 	}
 
 	isClosed(dbName : string) : boolean {
