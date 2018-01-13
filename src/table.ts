@@ -8,7 +8,7 @@ enum UpdateType {
 class Table {
 	private name : string;
 	private database : Database;
-	private keyPath : Array<string>;
+	private keyPath : string | Array<string>;
 	private autoIncrement : boolean;
 
 	constructor(name : string, database : Database) {
@@ -16,7 +16,7 @@ class Table {
 		this.database = database;
 
 		let [idbTable] = this.IdbTableAndTranForRead;
-		this.keyPath = typeof idbTable.keyPath === "string" ? [idbTable.keyPath] : idbTable.keyPath;
+		this.keyPath = idbTable.keyPath;
 		this.autoIncrement = idbTable.autoIncrement;
 	}
 
@@ -27,7 +27,7 @@ class Table {
 		return this.database;
 	}
 	get CompositeKey() {
-		return this.keyPath.length > 1;
+		return typeof this.keyPath !== "string";
 	}
 	get AutoIncrement() {
 		return this.autoIncrement;
@@ -70,7 +70,7 @@ class Table {
 		return promise;
 	}
 
-	insert(records : Array<TableRecord>) {
+	insert(records : Array<EZDBTableRecord>) {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.database.Closed) {
 				reject (new EZDBException(`Database ${this.database.Name} is already closed! No data can be inserted in table ${this.name}...`));
@@ -114,7 +114,7 @@ class Table {
 		return promise;
 	}
 
-	update(records : Array<TableRecord>, type? : UpdateType) {
+	update(records : Array<EZDBTableRecord>, type? : UpdateType) {
 		type = type || DBManager.Instance.DefaultUpdateType;
 
 		const promise = new Promise<number>((resolve, reject) => {
@@ -162,10 +162,9 @@ class Table {
 					}
 
 					try {
-						let key = this.keyPath.map(attr => record[attr]);
-						key = this.CompositeKey ? key : key[0];
-
+						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
 						const queryRequest = idbTable.get(key);
+
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
 
@@ -203,8 +202,7 @@ class Table {
 					}
 
 					try {
-						let key = this.keyPath.map(attr => record[attr]);
-						key = this.CompositeKey ? key : key[0];
+						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
 
 						const queryRequest = idbTable.get(key);
 						queryRequest.onsuccess = () => {
@@ -240,8 +238,7 @@ class Table {
 					}
 
 					try {
-						let key = this.keyPath.map(attr => record[attr]);
-						key = this.CompositeKey ? key : key[0];
+						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
 
 						const queryRequest = idbTable.get(key);
 						queryRequest.onsuccess = () => {
@@ -267,6 +264,49 @@ class Table {
 					}
 				}
 				break;
+			}
+		});
+		
+		return promise;
+	}
+
+	delete(records : Array<EZDBTableRecord>) {
+		const promise = new Promise<number>((resolve, reject) => {
+			if (this.database.Closed) {
+				reject(new EZDBException(`Database ${this.database.Name} is already closed! No data can be deleted in table ${this.name}...`));
+				return;
+			}
+			
+			const [idbTable,idbTransaction] = this.IdbTableAndTranForWrite;
+			
+			let numberOfAffectedRecords = 0;
+			let error : string;
+			let transactionErrorOcurred = false;
+
+			idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
+			idbTransaction.onabort = () => reject(new EZDBException(error));
+			
+
+			for (let record of records) {
+				if (transactionErrorOcurred) {
+					break;
+				}
+
+				try {
+					const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
+
+					const deleteRequest = idbTable.delete(key);
+					deleteRequest.onsuccess = () => {
+						numberOfAffectedRecords++;
+					}
+					deleteRequest.onerror = () => {
+						transactionErrorOcurred = true;
+						if (!error) error = `${deleteRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+					}
+				} catch (error) {
+					reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
+					break;
+				}
 			}
 		});
 		

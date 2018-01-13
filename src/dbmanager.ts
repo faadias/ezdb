@@ -41,7 +41,7 @@ class DBManager {
 		throw new EZDBException(`Database ${dbName} could not be found!`);
 	}
 
-	open(dbName : string, dbVersion? : number, config? : DatabaseConfig) {
+	open(dbName : string, dbVersion? : number, config? : EZDBDatabaseConfig) {
 		const manager : DBManager = this;
 
 		const promise = new Promise<Database>((resolve, reject) => {

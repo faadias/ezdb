@@ -1,28 +1,29 @@
-interface DatabaseConfig {
+interface EZDBDatabaseConfig {
 	tables : {
-		[key : string] : TableConfig
+		[key : string] : EZDBTableConfig
 	}
 
 }
 
-interface KeyConfig {
+interface EZDBKeyConfig {
 	keyPath : string | Array<string>,
 	autoIncrement? : boolean
 }
 
-interface IndexConfig {
+interface EZDBIndexConfig {
 	name : string,
 	columns : string | Array<string>,
 	unique? : boolean
 }
 
-interface TableConfig {
-	key : KeyConfig,
-	indexes? : Array<IndexConfig>
+interface EZDBTableConfig {
+	key : EZDBKeyConfig,
+	indexes? : Array<EZDBIndexConfig>
 	delindexes? : Array<string>
 	drop? : boolean
 }
 
-interface TableRecord {
+interface EZDBTableRecord {
 	[key : string] : any
 }
+
