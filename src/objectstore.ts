@@ -1,83 +1,76 @@
-enum UpdateType {
-	REPLACE_EXISTING="replace",		//Replaces whole record; if record doesn't exist, does nothing
-	UPDATE_EXISTING="update",		//Updates record according to the attributes given; if record doesn't exist, does nothing
-	REPLACE_INSERT="replace_insert",//Replaces whole record; if record doesn't exist, inserts it
-	UPDATE_INSERT="update_insert"	//Updates record according to the attributes given; if record doesn't exist, inserts it
-}
-
-class Table {
+class ObjectStore {
 	private name : string;
 	private database : Database;
-	private keyPath : string | Array<string>;
 	private autoIncrement : boolean;
+	private keyPath : string | Array<string>;
 
 	constructor(name : string, database : Database) {
 		this.name = name;
 		this.database = database;
 
-		let [idbTable] = this.IdbTableAndTranForRead;
-		this.keyPath = idbTable.keyPath;
-		this.autoIncrement = idbTable.autoIncrement;
+		let [idbStore] = this.IdbStoreAndTranForRead;
+		this.keyPath = idbStore.keyPath;
+		this.autoIncrement = idbStore.autoIncrement;
 	}
-
+	
 	get Name() {
 		return this.name;
 	}
 	get Database() {
 		return this.database;
 	}
-	get CompositeKey() {
-		return typeof this.keyPath !== "string";
-	}
 	get AutoIncrement() {
 		return this.autoIncrement;
 	}
-
-	private get IdbTableAndTranForWrite() : [IDBObjectStore, IDBTransaction] {
-		const idbTransaction = this.database.IdbDatabase.transaction(this.name, TransactionType.READWRITE);
-		const idbTable = idbTransaction.objectStore(this.name);
-		return [idbTable,idbTransaction];
+	get CompositeKey() {
+		return typeof this.keyPath !== "string";
 	}
 
-	private get IdbTableAndTranForRead() : [IDBObjectStore, IDBTransaction] {
-		const idbTransaction = this.database.IdbDatabase.transaction(this.name, TransactionType.READONLY);
-		const idbTable = idbTransaction.objectStore(this.name);
-		return [idbTable,idbTransaction];
+	private get IdbStoreAndTranForWrite() : [IDBObjectStore, IDBTransaction] {
+		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READWRITE);
+		const idbStore = idbTransaction.objectStore(this.name);
+		return [idbStore,idbTransaction];
+	}
+
+	private get IdbStoreAndTranForRead() : [IDBObjectStore, IDBTransaction] {
+		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READONLY);
+		const idbStore = idbTransaction.objectStore(this.name);
+		return [idbStore,idbTransaction];
 	}
 
 	truncate() {
 		const promise = new Promise<void>((resolve, reject) => {
-			if (this.database.Closed) {
-				reject(new EZDBException(`Database ${this.database.Name} is already closed! Table ${this.name} can't be truncated...`));
+			if (this.Database.Closed) {
+				reject(new EZDBException(`Database ${this.Database.Name} is already closed! Store ${this.Name} can't be truncated...`));
 				return;
 			}
 
-			const [idbTable,idbTransaction] = this.IdbTableAndTranForWrite;
+			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
 
-			idbTable.clear();
+			idbStore.clear();
 			
 			idbTransaction.oncomplete = () => {
 				resolve();
 			}
 			idbTransaction.onerror = () => {
-				reject(new EZDBException(`An error occurred while trying to truncate table ${this.name} (database ${this.database.Name})!`));
+				reject(new EZDBException(`An error occurred while trying to truncate store ${this.Name} (database ${this.database.Name})!`));
 			}
 			idbTransaction.onabort = () => {
-				reject(new EZDBException(`The truncation of table ${this.name} (database ${this.database.Name}) has been aborted!`));
+				reject(new EZDBException(`The truncation of store ${this.Name} (database ${this.Database.Name}) has been aborted!`));
 			}
 		});
 		
 		return promise;
 	}
 
-	insert(records : Array<EZDBTableRecord>) {
+	insert(records : Array<EZDBStoreRecord>) {
 		const promise = new Promise<number>((resolve, reject) => {
-			if (this.database.Closed) {
-				reject (new EZDBException(`Database ${this.database.Name} is already closed! No data can be inserted in table ${this.name}...`));
+			if (this.Database.Closed) {
+				reject (new EZDBException(`Database ${this.Database.Name} is already closed! No data can be inserted in store ${this.Name}...`));
 				return;
 			}
 
-			const [idbTable,idbTransaction] = this.IdbTableAndTranForWrite;
+			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
 
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -92,7 +85,7 @@ class Table {
 				}
 
 				try {
-					const insertRequest = idbTable.add(record);
+					const insertRequest = idbStore.add(record);
 					insertRequest.onsuccess = () => {
 						let keyName = <string>this.keyPath;
 						if (this.AutoIncrement && record[keyName] === undefined) {
@@ -102,7 +95,7 @@ class Table {
 					}
 					insertRequest.onerror = () => {
 						transactionErrorOcurred = true;
-						if (!error) error = `${insertRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+						if (!error) error = `${insertRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 					}
 				} catch (error) {
 					reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
@@ -114,16 +107,16 @@ class Table {
 		return promise;
 	}
 
-	update(records : Array<EZDBTableRecord>, type? : UpdateType) {
+	update(records : Array<EZDBStoreRecord>, type? : EZDBUpdateType) {
 		type = type || DBManager.Instance.DefaultUpdateType;
 
 		const promise = new Promise<number>((resolve, reject) => {
-			if (this.database.Closed) {
-				reject(new EZDBException(`Database ${this.database.Name} is already closed! No data can be updated in table ${this.name}...`));
+			if (this.Database.Closed) {
+				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be updated in store ${this.Name}...`));
 				return;
 			}
 			
-			const [idbTable,idbTransaction] = this.IdbTableAndTranForWrite;
+			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
 			
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -133,20 +126,20 @@ class Table {
 			idbTransaction.onabort = () => reject(new EZDBException(error));
 			
 			switch(type){
-				case UpdateType.REPLACE_INSERT:
+				case EZDBUpdateType.REPLACE_INSERT:
 				for (let record of records) {
 					if (transactionErrorOcurred) {
 						break;
 					}
 
 					try {
-						const updateRequest = idbTable.put(record);
+						const updateRequest = idbStore.put(record);
 						updateRequest.onsuccess = () => {
 							numberOfAffectedRecords++;
 						}
 						updateRequest.onerror = () => {
 							transactionErrorOcurred = true;
-							if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+							if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
 					} catch (error) {
 						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
@@ -155,15 +148,15 @@ class Table {
 				}
 				break;
 				
-				case UpdateType.UPDATE_INSERT:
+				case EZDBUpdateType.UPDATE_INSERT:
 				for (let record of records) {
 					if (transactionErrorOcurred) {
 						break;
 					}
 
 					try {
-						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
-						const queryRequest = idbTable.get(key);
+						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => record[attr]);
+						const queryRequest = idbStore.get(key);
 
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
@@ -175,18 +168,18 @@ class Table {
 								retrievedRecord = record;
 							}
 							
-							const updateRequest = idbTable.put(retrievedRecord);
+							const updateRequest = idbStore.put(retrievedRecord);
 							updateRequest.onsuccess = () => {
 								numberOfAffectedRecords++;
 							}
 							updateRequest.onerror = () => {
 								transactionErrorOcurred = true;
-								if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+								if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 							}
 						}
 						queryRequest.onerror = () => {
 							transactionErrorOcurred = true;
-							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
 					} catch (error) {
 						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
@@ -195,34 +188,34 @@ class Table {
 				}
 				break;
 				
-				case UpdateType.UPDATE_EXISTING:
+				case EZDBUpdateType.UPDATE_EXISTING:
 				for (let record of records) {
 					if (transactionErrorOcurred) {
 						break;
 					}
 
 					try {
-						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
+						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => record[attr]);
 
-						const queryRequest = idbTable.get(key);
+						const queryRequest = idbStore.get(key);
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
 							if (retrievedRecord) {
 								Object.keys(record).forEach(attr => retrievedRecord[attr] = record[attr]);
 								
-								const updateRequest = idbTable.put(retrievedRecord);
+								const updateRequest = idbStore.put(retrievedRecord);
 								updateRequest.onsuccess = () => {
 									numberOfAffectedRecords++;
 								}
 								updateRequest.onerror = () => {
 									transactionErrorOcurred = true;
-									if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+									if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 								}
 							}
 						}
 						queryRequest.onerror = () => {
 							transactionErrorOcurred = true;
-							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
 					} catch (error) {
 						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
@@ -231,32 +224,32 @@ class Table {
 				}
 				break;
 
-				case UpdateType.REPLACE_EXISTING:
+				case EZDBUpdateType.REPLACE_EXISTING:
 				for (let record of records) {
 					if (transactionErrorOcurred) {
 						break;
 					}
 
 					try {
-						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
+						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => record[attr]);
 
-						const queryRequest = idbTable.get(key);
+						const queryRequest = idbStore.get(key);
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
 							if (retrievedRecord) {
-								const updateRequest = idbTable.put(record);
+								const updateRequest = idbStore.put(record);
 								updateRequest.onsuccess = () => {
 									numberOfAffectedRecords++;
 								}
 								updateRequest.onerror = () => {
 									transactionErrorOcurred = true;
-									if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+									if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 								}
 							}
 						}
 						queryRequest.onerror = () => {
 							transactionErrorOcurred = true;
-							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
 					} catch (error) {
 						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
@@ -270,14 +263,14 @@ class Table {
 		return promise;
 	}
 
-	delete(recordsOrKeys : Array<EZDBTableRecord | EZDBKey>) {
+	delete(recordsOrKeys : Array<EZDBStoreRecord | EZDBKey>) {
 		const promise = new Promise<number>((resolve, reject) => {
-			if (this.database.Closed) {
-				reject(new EZDBException(`Database ${this.database.Name} is already closed! No data can be deleted in table ${this.name}...`));
+			if (this.Database.Closed) {
+				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`));
 				return;
 			}
 			
-			const [idbTable,idbTransaction] = this.IdbTableAndTranForWrite;
+			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
 			
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -295,26 +288,26 @@ class Table {
 				try {
 					let key = recordOrKey;
 					if (typeof recordOrKey === "object" && !(recordOrKey instanceof Array)) {
-						key = typeof this.keyPath === "string" ? recordOrKey[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => recordOrKey[attr]);
+						key = typeof this.keyPath === "string" ? recordOrKey[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => recordOrKey[attr]);
 					}
 					
-					const queryRequest = idbTable.get(key);
+					const queryRequest = idbStore.get(key);
 					queryRequest.onsuccess = () => {
 						let retrievedRecord = queryRequest.result;
 						if (retrievedRecord) {
-							const deleteRequest = idbTable.delete(key);
+							const deleteRequest = idbStore.delete(key);
 							deleteRequest.onsuccess = () => {
 								numberOfAffectedRecords++;
 							}
 							deleteRequest.onerror = () => {
 								transactionErrorOcurred = true;
-								if (!error) error = `${deleteRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.name})`;
+								if (!error) error = `${deleteRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
 							}
 						}
 					}
 					queryRequest.onerror = () => {
 						transactionErrorOcurred = true;
-						if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.name})`;
+						if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
 					}
 				} catch (error) {
 					reject(new EZDBException(`${error} Record: ${JSON.stringify(recordOrKey)}`));

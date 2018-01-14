@@ -1,17 +1,11 @@
-enum TransactionType {
-	READONLY = "readonly",
-	READWRITE = "readwrite",
-	VERSIONCHANGE = "versionchange"
-}
-
 class DBManager {
 	private static instance : DBManager;
 	private dbs : Map<string,Database>;
-	private defaultUpdateType : UpdateType;
+	private defaultUpdateType : EZDBUpdateType;
 
 	constructor() {
 		this.dbs = new Map<string,Database>();
-		this.defaultUpdateType = UpdateType.UPDATE_EXISTING;
+		this.defaultUpdateType = EZDBUpdateType.UPDATE_EXISTING;
 	}
 
 	static get Instance() {
@@ -28,7 +22,7 @@ class DBManager {
 	get DefaultUpdateType(){
 		return this.defaultUpdateType;
 	}
-	set DefaultUpdateType(value:UpdateType){
+	set DefaultUpdateType(value:EZDBUpdateType){
 		this.defaultUpdateType = value;
 	}
 
@@ -51,48 +45,48 @@ class DBManager {
 				if (!config) return;
 
 				const idbDatabase : IDBDatabase = request.result;
-				const tableSchemas = config.tables;
+				const storeSchemas = config.stores;
 
-				for (let tableName in tableSchemas) {
-					const tableSchema = tableSchemas[tableName];
-					let idbTable : IDBObjectStore;
+				for (let storeName in storeSchemas) {
+					const storeSchema = storeSchemas[storeName];
+					let idbStore : IDBObjectStore;
 					
-					let tableExistsInDB = idbDatabase.objectStoreNames.contains(tableName);
-					if (tableExistsInDB) {
-						if (tableSchema.drop) {
+					let storeExistsInDB = idbDatabase.objectStoreNames.contains(storeName);
+					if (storeExistsInDB) {
+						if (storeSchema.drop) {
 							try {
-								idbDatabase.deleteObjectStore(tableName);
+								idbDatabase.deleteObjectStore(storeName);
 								continue;
 							} catch (error) {
-								reject(new EZDBException(`${error} Table: ${tableName}`));
+								reject(new EZDBException(`${error} Store: ${storeName}`));
 								break;
 							}
 						}
 
-						idbTable = request.transaction.objectStore(tableName);
+						idbStore = request.transaction.objectStore(storeName);
 					}
 					else {
 						try {
-							idbTable = idbDatabase.createObjectStore(tableName, tableSchema.key);
+							idbStore = idbDatabase.createObjectStore(storeName, storeSchema.key);
 						} catch (error) {
-							reject(new EZDBException(`${error} Table: ${tableName}`));
+							reject(new EZDBException(`${error} Store: ${storeName}`));
 							break;
 						}
 					}
 					
-					if (tableSchema.indexes) {
-						tableSchema.indexes
-							.filter(index => !idbTable.indexNames.contains(index.name))
+					if (storeSchema.indexes) {
+						storeSchema.indexes
+							.filter(index => !idbStore.indexNames.contains(index.name))
 							.forEach(index => {
-								idbTable.createIndex(index.name, index.columns, { unique : index.unique });
+								idbStore.createIndex(index.name, index.columns, { unique : index.unique });
 							});
 					}
 					
-					if (tableSchema.delindexes) {
-						tableSchema.delindexes
-							.filter(indexName => idbTable.indexNames.contains(indexName))
+					if (storeSchema.delindexes) {
+						storeSchema.delindexes
+							.filter(indexName => idbStore.indexNames.contains(indexName))
 							.forEach(indexName => {
-								idbTable.deleteIndex(indexName);
+								idbStore.deleteIndex(indexName);
 						});
 					}
 				}

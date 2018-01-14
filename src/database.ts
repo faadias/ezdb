@@ -1,17 +1,17 @@
 class Database {
 	private closed : boolean;
 	private idbDatabase : IDBDatabase;
-	private tables : Map<string, Table>;
+	private stores : Map<string, ObjectStore>;
 
 	constructor(idbDatabase : IDBDatabase) {
 		this.idbDatabase = idbDatabase;
 		this.closed = false;
 
-		this.tables = new Map<string, Table>();
+		this.stores = new Map<string, ObjectStore>();
 
 		Array.from(idbDatabase.objectStoreNames)
-			.map(tableName => new Table(tableName, this))
-			.forEach(table => this.tables.set(table.Name, table));
+			.map(storeName => new ObjectStore(storeName, this))
+			.forEach(store => this.stores.set(store.Name, store));
 	}
 
 	get Closed() {
@@ -30,19 +30,19 @@ class Database {
 	get IdbDatabase() {
 		return this.idbDatabase;
 	}
-	get TableNames() {
-		return Array.from(this.tables.keys());
+	get StoreNames() {
+		return Array.from(this.stores.keys());
 	}
-	get Tables() {
-		return Array.from(this.tables.values());
+	get Stores() {
+		return Array.from(this.stores.values());
 	}
 
-	table(tableName : string) : Table {
-		if (!this.tables.has(tableName)) {
-			throw new EZDBException(`Table ${tableName} doesn't exist in database ${this.Name}!`);
+	store(storeName : string) : ObjectStore {
+		if (!this.stores.has(storeName)) {
+			throw new EZDBException(`Store ${storeName} doesn't exist in database ${this.Name}!`);
 		}
 
-		return this.tables.get(tableName)!;
+		return this.stores.get(storeName)!;
 	}
 
 	close() {

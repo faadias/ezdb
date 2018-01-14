@@ -8,7 +8,7 @@
 	let database : Database;
 
 	ezdb.open("MyFirstDatabase", 2, {
-		tables : {
+		stores : {
 			person : {
 				key : { keyPath : "id" },
 				indexes : [
@@ -36,7 +36,7 @@
 		document.body.innerText += "\r\n" + database.Name;
 		document.body.innerText += "\r\nversion: " + database.Version;
 		document.body.innerText += "\r\nclosed: " + database.Closed;
-		document.body.innerText += "\r\ntables: " + database.TableNames;
+		document.body.innerText += "\r\nstores: " + database.StoreNames;
 		document.body.innerText += "\r\n";
 
 		doStuff();
@@ -44,7 +44,7 @@
 	.catch(defaultCatch);
 
 
-	let persons : Array<EZDBTableRecord> = [
+	let persons : Array<EZDBStoreRecord> = [
 		{ id : 100, firstname : "John" , lastname : "Doe"         , age : 41, gender : "M" },
 		{ id : 101, firstname : "Anne" , lastname : "Millard"     , age : 22, gender : "F" },
 		{ id : 102, firstname : "Grace", lastname : "Minitz"      , age : 28, gender : "F" },
@@ -52,20 +52,20 @@
 		{ id : 110, firstname : "Mary" , lastname : "Kovacs"      , age : 66, gender : "F" }
 	];
 
-	let emails : Array<EZDBTableRecord> = [
+	let emails : Array<EZDBStoreRecord> = [
 		{ email : "johndoe@somewhere.com", category : "business" }
 	];
 
 	function doStuff() {
-		database.table("person").truncate();
-		database.table("email").truncate();
-		database.table("person_email").truncate();
+		database.store("person").truncate();
+		database.store("email").truncate();
+		database.store("person_email").truncate();
 
-		let personPromise = database.table("person").insert(persons)
+		let personPromise = database.store("person").insert(persons)
 		.then(affected => console.log(`People inserted: ${affected}`))
 		.catch(defaultCatch);
 		
-		let emailPromise = database.table("email").insert(emails)
+		let emailPromise = database.store("email").insert(emails)
 		.then(affected => {
 			console.log(`Email inserted: ${affected}`);
 			console.log(emails);
@@ -74,7 +74,7 @@
 
 		Promise.all([personPromise, emailPromise])
 			.then(() => {
-				database.table("person_email").insert([{ person_id : 100, email_key : emails[0].key }])
+				database.store("person_email").insert([{ person_id : 100, email_key : emails[0].key }])
 				.then(affected => {
 					console.log(`Relationships inserted: ${affected}`);
 				})

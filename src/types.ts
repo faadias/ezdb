@@ -1,6 +1,6 @@
 interface EZDBDatabaseConfig {
-	tables : {
-		[key : string] : EZDBTableConfig
+	stores : {
+		[key : string] : EZDBStoreConfig
 	}
 
 }
@@ -16,14 +16,14 @@ interface EZDBIndexConfig {
 	unique? : boolean
 }
 
-interface EZDBTableConfig {
+interface EZDBStoreConfig {
 	key : EZDBKeyConfig,
 	indexes? : Array<EZDBIndexConfig>
 	delindexes? : Array<string>
 	drop? : boolean
 }
 
-interface EZDBTableRecord {
+interface EZDBStoreRecord {
 	[key : string] : any
 }
 
