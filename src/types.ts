@@ -27,3 +27,4 @@ interface EZDBTableRecord {
 	[key : string] : any
 }
 
+type EZDBKey = any | Array<any>;

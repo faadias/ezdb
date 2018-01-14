@@ -94,9 +94,9 @@ class Table {
 				try {
 					const insertRequest = idbTable.add(record);
 					insertRequest.onsuccess = () => {
-						if (this.AutoIncrement) {
-							let key = this.keyPath[0];
-							record[key] = insertRequest.result;
+						let keyName = <string>this.keyPath;
+						if (this.AutoIncrement && record[keyName] === undefined) {
+							record[keyName] = insertRequest.result;
 						}
 						numberOfAffectedRecords++;
 					}
@@ -270,7 +270,7 @@ class Table {
 		return promise;
 	}
 
-	delete(records : Array<EZDBTableRecord>) {
+	delete(recordsOrKeys : Array<EZDBTableRecord | EZDBKey>) {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.database.Closed) {
 				reject(new EZDBException(`Database ${this.database.Name} is already closed! No data can be deleted in table ${this.name}...`));
@@ -287,24 +287,37 @@ class Table {
 			idbTransaction.onabort = () => reject(new EZDBException(error));
 			
 
-			for (let record of records) {
+			for (let recordOrKey of recordsOrKeys) {
 				if (transactionErrorOcurred) {
 					break;
 				}
 
 				try {
-					const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => record[attr]);
-
-					const deleteRequest = idbTable.delete(key);
-					deleteRequest.onsuccess = () => {
-						numberOfAffectedRecords++;
+					let key = recordOrKey;
+					if (typeof recordOrKey === "object" && !(recordOrKey instanceof Array)) {
+						key = typeof this.keyPath === "string" ? recordOrKey[this.keyPath] : this.keyPath.map((attr : keyof EZDBTableRecord) => recordOrKey[attr]);
 					}
-					deleteRequest.onerror = () => {
+					
+					const queryRequest = idbTable.get(key);
+					queryRequest.onsuccess = () => {
+						let retrievedRecord = queryRequest.result;
+						if (retrievedRecord) {
+							const deleteRequest = idbTable.delete(key);
+							deleteRequest.onsuccess = () => {
+								numberOfAffectedRecords++;
+							}
+							deleteRequest.onerror = () => {
+								transactionErrorOcurred = true;
+								if (!error) error = `${deleteRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.name})`;
+							}
+						}
+					}
+					queryRequest.onerror = () => {
 						transactionErrorOcurred = true;
-						if (!error) error = `${deleteRequest.error.message} Record: ${JSON.stringify(record)} (${this.name})`;
+						if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.name})`;
 					}
 				} catch (error) {
-					reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
+					reject(new EZDBException(`${error} Record: ${JSON.stringify(recordOrKey)}`));
 					break;
 				}
 			}

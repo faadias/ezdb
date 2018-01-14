@@ -7,7 +7,7 @@
 
 	let database : Database;
 
-	ezdb.open("MyFirstDatabase", 1, {
+	ezdb.open("MyFirstDatabase", 2, {
 		tables : {
 			person : {
 				key : { keyPath : "id" },
@@ -22,8 +22,11 @@
 				key : { keyPath : "key", autoIncrement : true },
 				indexes : [
 					{ name : "email", columns : "email", unique : true },
-					{ name : "person_id", columns : "person_id", unique : false }
+					{ name : "category", columns : "category", unique : false }
 				]
+			},
+			person_email : {
+				key : { keyPath : ["person_id","email_key"] }
 			}
 		}
 	})
@@ -41,30 +44,41 @@
 	.catch(defaultCatch);
 
 
-	let persons = [
+	let persons : Array<EZDBTableRecord> = [
+		{ id : 100, firstname : "John" , lastname : "Doe"         , age : 41, gender : "M" },
 		{ id : 101, firstname : "Anne" , lastname : "Millard"     , age : 22, gender : "F" },
 		{ id : 102, firstname : "Grace", lastname : "Minitz"      , age : 28, gender : "F" },
 		{ id : 103, firstname : "Jean" , lastname : "Fauchelevent", age : 28, gender : "M" },
 		{ id : 110, firstname : "Mary" , lastname : "Kovacs"      , age : 66, gender : "F" }
 	];
 
-	let emails = [
-		{ email : "johndoe@somewhere.com", person_id : 111 }
+	let emails : Array<EZDBTableRecord> = [
+		{ email : "johndoe@somewhere.com", category : "business" }
 	];
 
 	function doStuff() {
 		database.table("person").truncate();
 		database.table("email").truncate();
+		database.table("person_email").truncate();
 
-		database.table("person").insert(persons)
-		.then(affected => console.log(affected))
+		let personPromise = database.table("person").insert(persons)
+		.then(affected => console.log(`People inserted: ${affected}`))
 		.catch(defaultCatch);
 		
-		database.table("email").insert(emails)
+		let emailPromise = database.table("email").insert(emails)
 		.then(affected => {
-			console.log(affected);
+			console.log(`Email inserted: ${affected}`);
 			console.log(emails);
 		})
 		.catch(defaultCatch);
+
+		Promise.all([personPromise, emailPromise])
+			.then(() => {
+				database.table("person_email").insert([{ person_id : 100, email_key : emails[0].key }])
+				.then(affected => {
+					console.log(`Relationships inserted: ${affected}`);
+				})
+				.catch(defaultCatch);
+			})
 	}
 }).call(window);
