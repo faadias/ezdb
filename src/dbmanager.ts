@@ -48,12 +48,12 @@ class DBManager {
 				const storeSchemas = config.stores;
 
 				for (let storeName in storeSchemas) {
-					const storeSchema = storeSchemas[storeName];
+					const storeConfig = storeSchemas[storeName];
 					let idbStore : IDBObjectStore;
 					
 					let storeExistsInDB = idbDatabase.objectStoreNames.contains(storeName);
 					if (storeExistsInDB) {
-						if (storeSchema.drop) {
+						if (storeConfig && storeConfig.drop) {
 							try {
 								idbDatabase.deleteObjectStore(storeName);
 								continue;
@@ -67,27 +67,29 @@ class DBManager {
 					}
 					else {
 						try {
-							idbStore = idbDatabase.createObjectStore(storeName, storeSchema.key);
+							idbStore = idbDatabase.createObjectStore(storeName, storeConfig && storeConfig.key ? storeConfig.key : undefined);
 						} catch (error) {
 							reject(new EZDBException(`${error} Store: ${storeName}`));
 							break;
 						}
 					}
 					
-					if (storeSchema.indexes) {
-						storeSchema.indexes
-							.filter(index => !idbStore.indexNames.contains(index.name))
-							.forEach(index => {
-								idbStore.createIndex(index.name, index.columns, { unique : index.unique });
+					if (storeConfig) {
+						if (storeConfig.indexes) {
+							storeConfig.indexes
+								.filter(index => !idbStore.indexNames.contains(index.name))
+								.forEach(index => {
+									idbStore.createIndex(index.name, index.columns, { unique : index.unique });
+								});
+						}
+						
+						if (storeConfig.dropindexes) {
+							storeConfig.dropindexes
+								.filter(indexName => idbStore.indexNames.contains(indexName))
+								.forEach(indexName => {
+									idbStore.deleteIndex(indexName);
 							});
-					}
-					
-					if (storeSchema.delindexes) {
-						storeSchema.delindexes
-							.filter(indexName => idbStore.indexNames.contains(indexName))
-							.forEach(indexName => {
-								idbStore.deleteIndex(indexName);
-						});
+						}
 					}
 				}
 			};

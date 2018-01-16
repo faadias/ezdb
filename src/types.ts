@@ -1,12 +1,18 @@
 interface EZDBDatabaseConfig {
 	stores : {
-		[key : string] : EZDBStoreConfig
+		[key : string] : EZDBStoreConfig | undefined | null
 	}
+}
 
+interface EZDBStoreConfig {
+	key? : EZDBKeyConfig,
+	indexes? : Array<EZDBIndexConfig>
+	dropindexes? : Array<string>
+	drop? : boolean
 }
 
 interface EZDBKeyConfig {
-	keyPath : string | Array<string>,
+	keyPath? : string | Array<string>,
 	autoIncrement? : boolean
 }
 
@@ -16,15 +22,15 @@ interface EZDBIndexConfig {
 	unique? : boolean
 }
 
-interface EZDBStoreConfig {
-	key : EZDBKeyConfig,
-	indexes? : Array<EZDBIndexConfig>
-	delindexes? : Array<string>
-	drop? : boolean
-}
 
-interface EZDBStoreRecord {
-	[key : string] : any
-}
+type EZDBPlainKey = number | string | Date;
+type EZDBKey = EZDBPlainKey | Array<EZDBPlainKey>
 
-type EZDBKey = any | Array<any>;
+type EZDBPlainStorable  = string | number | boolean | symbol | object;
+type EZDBObjectStorable = { [key:string] : EZDBPlainStorable };
+type EZDBStorable = EZDBPlainStorable | EZDBObjectStorable;
+
+type EZDBKeyValueRecord = {
+	key : EZDBPlainKey,
+	value : EZDBPlainStorable
+}

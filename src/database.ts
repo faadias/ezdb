@@ -1,16 +1,24 @@
 class Database {
 	private closed : boolean;
 	private idbDatabase : IDBDatabase;
-	private stores : Map<string, ObjectStore>;
+	private stores : Map<string, Store>;
 
 	constructor(idbDatabase : IDBDatabase) {
 		this.idbDatabase = idbDatabase;
 		this.closed = false;
 
-		this.stores = new Map<string, ObjectStore>();
+		this.stores = new Map<string, KeyPathStore>();
 
 		Array.from(idbDatabase.objectStoreNames)
-			.map(storeName => new ObjectStore(storeName, this))
+			.map(storeName => {
+				const idbTable = this.idbDatabase.transaction(storeName).objectStore(storeName);
+				if (idbTable.keyPath) {
+					return new KeyPathStore(storeName, this, idbTable.keyPath, idbTable.autoIncrement);
+				}
+				else {
+					return new SimpleStore(storeName, this, idbTable.autoIncrement);
+				}
+			})
 			.forEach(store => this.stores.set(store.Name, store));
 	}
 
@@ -37,7 +45,7 @@ class Database {
 		return Array.from(this.stores.values());
 	}
 
-	store(storeName : string) : ObjectStore {
+	store(storeName : string) : Store {
 		if (!this.stores.has(storeName)) {
 			throw new EZDBException(`Store ${storeName} doesn't exist in database ${this.Name}!`);
 		}

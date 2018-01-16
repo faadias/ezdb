@@ -7,7 +7,7 @@
 
 	let database : Database;
 
-	ezdb.open("MyFirstDatabase", 2, {
+	ezdb.open("MyFirstDatabase", 3, {
 		stores : {
 			person : {
 				key : { keyPath : "id" },
@@ -27,6 +27,10 @@
 			},
 			person_email : {
 				key : { keyPath : ["person_id","email_key"] }
+			},
+			preferences : {},
+			cart : {
+				key : { autoIncrement : true }
 			}
 		}
 	})
@@ -44,7 +48,7 @@
 	.catch(defaultCatch);
 
 
-	let persons : Array<EZDBStoreRecord> = [
+	let persons : Array<EZDBObjectStorable> = [
 		{ id : 100, firstname : "John" , lastname : "Doe"         , age : 41, gender : "M" },
 		{ id : 101, firstname : "Anne" , lastname : "Millard"     , age : 22, gender : "F" },
 		{ id : 102, firstname : "Grace", lastname : "Minitz"      , age : 28, gender : "F" },
@@ -52,14 +56,29 @@
 		{ id : 110, firstname : "Mary" , lastname : "Kovacs"      , age : 66, gender : "F" }
 	];
 
-	let emails : Array<EZDBStoreRecord> = [
+	let emails : Array<EZDBObjectStorable> = [
 		{ email : "johndoe@somewhere.com", category : "business" }
+	];
+
+	let preferences : Array<EZDBKeyValueRecord> = [
+		{key : "storeLocalData", value : true},
+		{key : "autosavePreferences", value : true},
+		{key : "autoplayVideos", value : false},
+		{key : "signDocument", value : { value : true, signature : "basic"}}
+	];
+
+	let cart : Array<EZDBPlainStorable> = [
+		"Robot",
+		"Playing cards",
+		"La Vie en Rose (album)"
 	];
 
 	function doStuff() {
 		database.store("person").truncate();
 		database.store("email").truncate();
 		database.store("person_email").truncate();
+		database.store("preferences").truncate();
+		database.store("cart").truncate();
 
 		let personPromise = database.store("person").insert(persons)
 		.then(affected => console.log(`People inserted: ${affected}`))
@@ -76,9 +95,21 @@
 			.then(() => {
 				database.store("person_email").insert([{ person_id : 100, email_key : emails[0].key }])
 				.then(affected => {
-					console.log(`Relationships inserted: ${affected}`);
+					console.log(`Person-Email Relationships inserted: ${affected}`);
 				})
 				.catch(defaultCatch);
-			})
+			});
+		
+		database.store("preferences").insert(preferences)
+		.then(affected => {
+			console.log(`Preferences inserted: ${affected}`);
+		})
+		.catch(defaultCatch);
+
+		database.store("cart").insert(cart)
+		.then(affected => {
+			console.log(`Cart items inserted: ${affected}`);
+		})
+		.catch(defaultCatch);
 	}
 }).call(window);

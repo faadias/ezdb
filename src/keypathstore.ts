@@ -1,69 +1,16 @@
-class ObjectStore {
-	private name : string;
-	private database : Database;
-	private autoIncrement : boolean;
-	private keyPath : string | Array<string>;
+class KeyPathStore extends Store {
+	protected keyPath : Array<string>;
 
-	constructor(name : string, database : Database) {
-		this.name = name;
-		this.database = database;
-
-		let [idbStore] = this.IdbStoreAndTranForRead;
-		this.keyPath = idbStore.keyPath;
-		this.autoIncrement = idbStore.autoIncrement;
+	constructor(name : string, database : Database, keyPath : string | Array<string>, autoIncrement : boolean) {
+		super(name, database, autoIncrement);
+		this.keyPath = typeof keyPath === "string" ? [keyPath] : keyPath;
 	}
 	
-	get Name() {
-		return this.name;
-	}
-	get Database() {
-		return this.database;
-	}
-	get AutoIncrement() {
-		return this.autoIncrement;
-	}
-	get CompositeKey() {
-		return typeof this.keyPath !== "string";
+	get Key() {
+		return this.keyPath;
 	}
 
-	private get IdbStoreAndTranForWrite() : [IDBObjectStore, IDBTransaction] {
-		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READWRITE);
-		const idbStore = idbTransaction.objectStore(this.name);
-		return [idbStore,idbTransaction];
-	}
-
-	private get IdbStoreAndTranForRead() : [IDBObjectStore, IDBTransaction] {
-		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READONLY);
-		const idbStore = idbTransaction.objectStore(this.name);
-		return [idbStore,idbTransaction];
-	}
-
-	truncate() {
-		const promise = new Promise<void>((resolve, reject) => {
-			if (this.Database.Closed) {
-				reject(new EZDBException(`Database ${this.Database.Name} is already closed! Store ${this.Name} can't be truncated...`));
-				return;
-			}
-
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
-
-			idbStore.clear();
-			
-			idbTransaction.oncomplete = () => {
-				resolve();
-			}
-			idbTransaction.onerror = () => {
-				reject(new EZDBException(`An error occurred while trying to truncate store ${this.Name} (database ${this.database.Name})!`));
-			}
-			idbTransaction.onabort = () => {
-				reject(new EZDBException(`The truncation of store ${this.Name} (database ${this.Database.Name}) has been aborted!`));
-			}
-		});
-		
-		return promise;
-	}
-
-	insert(records : Array<EZDBStoreRecord>) {
+	insert(records : Array<EZDBObjectStorable>) {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject (new EZDBException(`Database ${this.Database.Name} is already closed! No data can be inserted in store ${this.Name}...`));
@@ -87,9 +34,8 @@ class ObjectStore {
 				try {
 					const insertRequest = idbStore.add(record);
 					insertRequest.onsuccess = () => {
-						let keyName = <string>this.keyPath;
-						if (this.AutoIncrement && record[keyName] === undefined) {
-							record[keyName] = insertRequest.result;
+						if (this.AutoIncrement && record[this.Key[0]] === undefined) {
+							record[this.Key[0]] = insertRequest.result;
 						}
 						numberOfAffectedRecords++;
 					}
@@ -107,7 +53,7 @@ class ObjectStore {
 		return promise;
 	}
 
-	update(records : Array<EZDBStoreRecord>, type? : EZDBUpdateType) {
+	update(records : Array<EZDBObjectStorable>, type? : EZDBUpdateType) {
 		type = type || DBManager.Instance.DefaultUpdateType;
 
 		const promise = new Promise<number>((resolve, reject) => {
@@ -155,20 +101,17 @@ class ObjectStore {
 					}
 
 					try {
-						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => record[attr]);
+						const key = this.Key.map(attr => record[attr]);
 						const queryRequest = idbStore.get(key);
-
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
+							let updatedRecord = retrievedRecord || record;
 
 							if (retrievedRecord) {
-								Object.keys(record).forEach(attr => retrievedRecord[attr] = record[attr]);
-							}
-							else {
-								retrievedRecord = record;
+								Object.keys(record).forEach(attr => updatedRecord[attr] = record[attr]);
 							}
 							
-							const updateRequest = idbStore.put(retrievedRecord);
+							const updateRequest = idbStore.put(updatedRecord);
 							updateRequest.onsuccess = () => {
 								numberOfAffectedRecords++;
 							}
@@ -195,8 +138,7 @@ class ObjectStore {
 					}
 
 					try {
-						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => record[attr]);
-
+						const key = this.Key.map(attr => record[attr]);
 						const queryRequest = idbStore.get(key);
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
@@ -231,8 +173,7 @@ class ObjectStore {
 					}
 
 					try {
-						const key = typeof this.keyPath === "string" ? record[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => record[attr]);
-
+						const key = this.Key.map(attr => record[attr]);
 						const queryRequest = idbStore.get(key);
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
@@ -263,7 +204,7 @@ class ObjectStore {
 		return promise;
 	}
 
-	delete(recordsOrKeys : Array<EZDBStoreRecord | EZDBKey>) {
+	delete(recordsOrKeys : Array<EZDBObjectStorable> | Array<EZDBKey>) {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`));
@@ -286,9 +227,14 @@ class ObjectStore {
 				}
 
 				try {
-					let key = recordOrKey;
-					if (typeof recordOrKey === "object" && !(recordOrKey instanceof Array)) {
-						key = typeof this.keyPath === "string" ? recordOrKey[this.keyPath] : this.keyPath.map((attr : keyof EZDBStoreRecord) => recordOrKey[attr]);
+					let key : EZDBPlainKey | Array<EZDBPlainKey>;
+
+					if (recordOrKey instanceof Array || typeof recordOrKey !== "object") { //EZDBKey === <Array<EZDBPlainKey> | EZDBPlainKey
+						key = recordOrKey;
+					}
+					else { //EZDBObjectStorable
+						let record = <EZDBObjectStorable>recordOrKey;
+						key = <Array<EZDBPlainKey>> this.Key.map(attr => record[attr]);
 					}
 					
 					const queryRequest = idbStore.get(key);
