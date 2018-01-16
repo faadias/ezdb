@@ -53,8 +53,12 @@ class KeyPathStore extends Store {
 		return promise;
 	}
 
-	update(records : Array<EZDBObjectStorable>, type? : EZDBUpdateType) {
+	update(records? : Array<EZDBObjectStorable>, type? : EZDBUpdateType) : Promise<number> | UpdateQuery {
 		type = type || DBManager.Instance.DefaultUpdateType;
+
+		if (records === undefined) {
+			return new UpdateQuery(this);
+		}
 
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
