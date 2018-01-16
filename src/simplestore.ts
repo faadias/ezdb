@@ -155,7 +155,7 @@ class SimpleStore extends Store {
 		return promise;
 	}
 
-	delete(recordsOrKeys : Array<EZDBKeyValueRecord | EZDBPlainKey>) {
+	delete(recordsOrKeys : Array<EZDBKeyValueRecord | EZDBPlainKey>) : Promise<number> {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`));

@@ -204,7 +204,11 @@ class KeyPathStore extends Store {
 		return promise;
 	}
 
-	delete(recordsOrKeys : Array<EZDBObjectStorable> | Array<EZDBKey>) {
+	delete(recordsOrKeys? : Array<EZDBObjectStorable> | Array<EZDBKey>) : Promise<number> | DeleteQuery {
+		if (recordsOrKeys === undefined) {
+			return new DeleteQuery(this);
+		}
+
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`));
