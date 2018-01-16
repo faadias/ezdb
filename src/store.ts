@@ -21,13 +21,13 @@ abstract class Store {
 	
 	abstract get Key() : Array<string> | null;
 
-	protected get IdbStoreAndTranForWrite() : [IDBObjectStore, IDBTransaction] {
+	get IdbStoreAndTranForWrite() : [IDBObjectStore, IDBTransaction] {
 		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READWRITE);
 		const idbStore = idbTransaction.objectStore(this.name);
 		return [idbStore,idbTransaction];
 	}
 
-	protected get IdbStoreAndTranForRead() : [IDBObjectStore, IDBTransaction] {
+	get IdbStoreAndTranForRead() : [IDBObjectStore, IDBTransaction] {
 		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READONLY);
 		const idbStore = idbTransaction.objectStore(this.name);
 		return [idbStore,idbTransaction];
@@ -61,4 +61,8 @@ abstract class Store {
 	abstract insert(records : Array<EZDBStorable | EZDBKeyValueRecord>) : Promise<number>;
 	abstract update(records : Array<EZDBStorable | EZDBKeyValueRecord>, type? : EZDBUpdateType) : Promise<number>;
 	abstract delete(recordsOrKeys : Array<EZDBStorable | EZDBKeyValueRecord | EZDBKey>) : Promise<number>;
+
+	query() {
+		return new Query(this);
+	}
 }

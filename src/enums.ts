@@ -10,3 +10,11 @@ enum EZDBTransactionType {
 	READWRITE = "readwrite",
 	VERSIONCHANGE = "versionchange"
 }
+
+enum EZDBQueryReturn {
+	VALUES = "values",
+	KEYS = "keys",
+	KEYVALUES = "keyvalues",
+	INDEXVALUES = "indexvalues",
+	KEYINDEXVALUES = "keyindexvalues"
+}

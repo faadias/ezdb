@@ -34,3 +34,5 @@ type EZDBKeyValueRecord = {
 	key : EZDBPlainKey,
 	value : EZDBPlainStorable
 }
+
+type EZDBCursorType = "next" | "prev" | "nextunique" | "prevunique";
