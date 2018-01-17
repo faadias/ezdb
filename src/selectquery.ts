@@ -36,13 +36,13 @@ class SelectQuery extends Query {
 		return super.buildRequest(isKeyCursor, isCount);
 	}
 
-	go() : Promise<Array<EZDBStorable> | Array<EZDBKeyValueRecord> | Array<EZDBKey>> {
-		let promise = new Promise<Array<EZDBStorable> | Array<EZDBKeyValueRecord> | Array<EZDBKey>>((resolve, reject) => {
+	go() : Promise<Array<EZDBStorable> | Array<EZDBKeyValuePair> | Array<EZDBKey>> {
+		let promise = new Promise<Array<EZDBStorable> | Array<EZDBKeyValuePair> | Array<EZDBKey>>((resolve, reject) => {
 			
 			try {
 				const [request, idbTransaction] = this.buildRequest(false);
 
-				let results = new Array<EZDBStorable | EZDBKeyValueRecord | EZDBKey>();
+				let results = new Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>();
 
 				idbTransaction.oncomplete = () => {
 					resolve(results);

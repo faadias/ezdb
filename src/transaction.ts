@@ -10,7 +10,7 @@ class Transaction {
 		this.tranUnits = new Array<any>();
 	}
 
-	private addTransactionUnit(type : EZDBTransactionDML, storeName : string, recordsOrKeys : Array<EZDBStorable | EZDBKeyValueRecord | EZDBKey>) {
+	private addTransactionUnit(type : EZDBTransactionDML, storeName : string, recordsOrKeys : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>) {
 		if (this.database.StoreNames.indexOf(storeName) === -1) {
 			throw new EZDBException(`Store ${storeName} not found in database ${this.database.Name}!`);
 		}
@@ -23,17 +23,17 @@ class Transaction {
 		});
 	}
 
-	insert(storeName : string, records : Array<EZDBStorable | EZDBKeyValueRecord>) {
+	insert(storeName : string, records : Array<EZDBStorable | EZDBKeyValuePair>) {
 		this.addTransactionUnit("ins", storeName, records)
 		return this;
 	}
 
-	update(storeName : string, records : Array<EZDBStorable | EZDBKeyValueRecord>) {
+	update(storeName : string, records : Array<EZDBStorable | EZDBKeyValuePair>) {
 		this.addTransactionUnit("upd", storeName, records)
 		return this;
 	}
 
-	delete(storeName : string, recordsOrKeys : Array<EZDBStorable | EZDBKeyValueRecord | EZDBKey>) {
+	delete(storeName : string, recordsOrKeys : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>) {
 		this.addTransactionUnit("del", storeName, recordsOrKeys)
 		return this;
 	}

@@ -60,7 +60,7 @@
 		{ email : "johndoe@somewhere.com", category : "business" }
 	];
 
-	let preferences : Array<EZDBKeyValueRecord> = [
+	let preferences : Array<EZDBKeyValuePair> = [
 		{key : "storeLocalData", value : true},
 		{key : "autosavePreferences", value : true},
 		{key : "autoplayVideos", value : false},

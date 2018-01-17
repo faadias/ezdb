@@ -11,7 +11,7 @@ class SimpleStore extends Store {
 		return typeof record === "object" && record.hasOwnProperty("key") && record.hasOwnProperty("value");
 	}
 
-	insert(records : Array<EZDBStorable | EZDBKeyValueRecord>) {
+	insert(records : Array<EZDBStorable | EZDBKeyValuePair>) {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject (new EZDBException(`Database ${this.Database.Name} is already closed! No data can be inserted in store ${this.Name}...`));
@@ -37,7 +37,7 @@ class SimpleStore extends Store {
 					let value : EZDBStorable = record;
 
 					if (this.isKeyValueRecord(record)) {
-						const keyValueRecord = <EZDBKeyValueRecord>record;
+						const keyValueRecord = <EZDBKeyValuePair>record;
 						key = keyValueRecord.key;
 						value = keyValueRecord.value;
 					}
@@ -60,7 +60,7 @@ class SimpleStore extends Store {
 		return promise;
 	}
 
-	update(records : Array<EZDBStorable | EZDBKeyValueRecord>, type? : EZDBUpdateType) {
+	update(records : Array<EZDBStorable | EZDBKeyValuePair>, type? : EZDBUpdateType) {
 		type = type || DBManager.Instance.DefaultUpdateType;
 
 		const promise = new Promise<number>((resolve, reject) => {
@@ -90,7 +90,7 @@ class SimpleStore extends Store {
 					let value : EZDBStorable = record;
 
 					if (this.isKeyValueRecord(record)) {
-						const keyValueRecord = <EZDBKeyValueRecord>record;
+						const keyValueRecord = <EZDBKeyValuePair>record;
 						key = keyValueRecord.key;
 						value = keyValueRecord.value;
 					}
@@ -121,7 +121,7 @@ class SimpleStore extends Store {
 					try {
 						if (!this.isKeyValueRecord(record)) continue; //If I want to update an existing record, it's mandatory to inform the key
 
-						const keyValueRecord = <EZDBKeyValueRecord>record;
+						const keyValueRecord = <EZDBKeyValuePair>record;
 						const key = keyValueRecord.key;
 						const value = keyValueRecord.value;
 
@@ -155,7 +155,7 @@ class SimpleStore extends Store {
 		return promise;
 	}
 
-	delete(recordsOrKeys : Array<EZDBKeyValueRecord | EZDBPlainKey>) : Promise<number> {
+	delete(recordsOrKeys : Array<EZDBKeyValuePair | EZDBPlainKey>) : Promise<number> {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`));
@@ -181,7 +181,7 @@ class SimpleStore extends Store {
 					let key : EZDBPlainKey = <EZDBPlainKey>recordOrKey;
 
 					if (this.isKeyValueRecord(recordOrKey)) {
-						const keyValueRecord = <EZDBKeyValueRecord>recordOrKey;
+						const keyValueRecord = <EZDBKeyValuePair>recordOrKey;
 						key = keyValueRecord.key;
 					}
 					

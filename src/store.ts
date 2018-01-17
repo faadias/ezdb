@@ -58,9 +58,9 @@ abstract class Store {
 		return promise;
 	}
 
-	abstract insert(records : Array<EZDBStorable | EZDBKeyValueRecord>) : Promise<number>;
-	abstract update(records? : Array<EZDBStorable | EZDBKeyValueRecord>, type? : EZDBUpdateType) : Promise<number> | UpdateQuery;
-	abstract delete(recordsOrKeys? : Array<EZDBStorable | EZDBKeyValueRecord | EZDBKey>) : Promise<number> | DeleteQuery;
+	abstract insert(records : Array<EZDBStorable | EZDBKeyValuePair>) : Promise<number>;
+	abstract update(records? : Array<EZDBStorable | EZDBKeyValuePair>, type? : EZDBUpdateType) : Promise<number> | UpdateQuery;
+	abstract delete(recordsOrKeys? : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>) : Promise<number> | DeleteQuery;
 
 	query() {
 		return new SelectQuery(this);
