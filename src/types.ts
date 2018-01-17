@@ -23,6 +23,14 @@ interface EZDBIndexConfig {
 }
 
 
+type EZDBTransactionUnit = {
+	records : Array<EZDBStorable | EZDBKeyValueRecord | EZDBKey>,
+	storeName : string,
+	type : EZDBTransactionDML
+}
+
+type EZDBTransactionDML = "ins" | "upd" | "del";
+
 type EZDBPlainKey = number | string | Date;
 type EZDBKey = EZDBPlainKey | Array<EZDBPlainKey>
 
