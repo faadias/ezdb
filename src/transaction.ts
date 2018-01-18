@@ -1,4 +1,9 @@
-class Transaction {
+import Database from "./database";
+import { EZDBTransactionUnit, EZDBTransactionDMLType, EZDBStorable, EZDBKeyValuePair, EZDBTransactionReturn, EZDBKey } from "./types";
+import EZDBException from "./ezdbexception";
+import { EZDBTransactionType } from "./enums";
+
+export default class Transaction {
 	private database : Database;
 	private storeNames : Set<string>;
 	private tranUnits : Array<EZDBTransactionUnit>;

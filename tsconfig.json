@@ -13,10 +13,14 @@
     "strictNullChecks": true,
     "target": "es6",
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+	"noUnusedParameters": true
   },
   "include": [
-	  "src"
+	  "src/ezdb.ts",
+  ],
+  "exclude": [
+	  "bin",
+	  "node_modules"
   ]
 }
 

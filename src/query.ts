@@ -1,4 +1,8 @@
-abstract class Query {
+import Store from "./store";
+import { EZDBStorable, EZDBCursorType } from "./types";
+import SelectQuery from "./selectquery";
+
+export default abstract class Query {
 	private store : Store;
 	private distinctFlag : boolean;
 	private ascFlag : boolean;

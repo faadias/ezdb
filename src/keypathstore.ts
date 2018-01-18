@@ -1,4 +1,13 @@
-class KeyPathStore extends Store {
+import Store from "./store";
+import UpdateQuery from "./updatequery";
+import DeleteQuery from "./deletequery";
+import EZDBException from "./ezdbexception";
+import { EZDBUpdateType } from "./enums";
+import { EZDBObjectStorable, EZDBKey, EZDBDMLType, EZDBPlainKey } from "./types";
+import Database from "./database";
+import DBManager from "./dbmanager";
+
+export default class KeyPathStore extends Store {
 	protected keyPath : Array<string>;
 
 	constructor(name : string, database : Database, keyPath : string | Array<string>, autoIncrement : boolean) {

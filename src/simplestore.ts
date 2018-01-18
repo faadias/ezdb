@@ -1,4 +1,11 @@
-class SimpleStore extends Store {
+import Store from "./store";
+import Database from "./database";
+import { EZDBStorable, EZDBKey, EZDBPlainKey, EZDBKeyValuePair, EZDBDMLType } from "./types";
+import EZDBException from "./ezdbexception";
+import DBManager from "./dbmanager";
+import { EZDBUpdateType } from "./enums";
+
+export default class SimpleStore extends Store {
 	constructor(name : string, database : Database, autoIncrement : boolean) {
 		super(name, database, autoIncrement);
 	}

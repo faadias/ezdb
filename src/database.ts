@@ -1,4 +1,11 @@
-class Database {
+import Store from "./store";
+import KeyPathStore from "./keypathstore";
+import SimpleStore from "./simplestore";
+import EZDBException from "./ezdbexception";
+import DBManager from "./dbmanager";
+import Transaction from "./transaction";
+
+export default class Database {
 	private closed : boolean;
 	private idbDatabase : IDBDatabase;
 	private stores : Map<string, Store>;

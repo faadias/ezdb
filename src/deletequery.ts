@@ -1,4 +1,8 @@
-class DeleteQuery extends Query {
+import Query from "./query";
+import Store from "./store";
+import EZDBException from "./ezdbexception";
+
+export default class DeleteQuery extends Query {
 	constructor(store : Store) {
 		super(store)
 	}

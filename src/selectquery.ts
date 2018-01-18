@@ -1,4 +1,10 @@
-class SelectQuery extends Query {
+import Query from "./query";
+import Store from "./store";
+import { EZDBQueryReturn } from "./enums";
+import { EZDBStorable, EZDBKeyValuePair, EZDBKey } from "./types";
+import EZDBException from "./ezdbexception";
+
+export default class SelectQuery extends Query {
 	private returnedValues : EZDBQueryReturn;
 
 	constructor(store : Store) {

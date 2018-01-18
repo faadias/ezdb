@@ -1,52 +1,54 @@
-type EZDBDatabaseConfig = {
+import Store from "./store";
+
+export type EZDBDatabaseConfig = {
 	stores : {
 		[key : string] : EZDBStoreConfig | undefined | null
 	}
 }
-type EZDBStoreConfig = {
+export type EZDBStoreConfig = {
 	key? : EZDBKeyConfig,
 	indexes? : Array<EZDBIndexConfig>
 	dropindexes? : Array<string>
 	drop? : boolean
 }
-type EZDBKeyConfig = {
+export type EZDBKeyConfig = {
 	keyPath? : string | Array<string>,
 	autoIncrement? : boolean
 }
-type EZDBIndexConfig = {
+export type EZDBIndexConfig = {
 	name : string,
 	columns : string | Array<string>,
 	unique? : boolean
 }
 
 
-type EZDBDMLType = "ins" | "upd" | "del" | "sel";
+export type EZDBDMLType = "ins" | "upd" | "del" | "sel";
 
 
-type EZDBTransactionDMLType = "ins" | "upd" | "del";
-type EZDBTransactionUnit = {
+export type EZDBTransactionDMLType = "ins" | "upd" | "del";
+export type EZDBTransactionUnit = {
 	recordsOrKeys : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>,
 	store : Store,
 	dmlType : EZDBTransactionDMLType
 }
-type EZDBTransactionReturn = {
+export type EZDBTransactionReturn = {
 	"ins" : number,
 	"upd" : number,
 	"del" : number
 }
 
 
-type EZDBCursorType = "next" | "prev" | "nextunique" | "prevunique";
+export type EZDBCursorType = "next" | "prev" | "nextunique" | "prevunique";
 
 
-type EZDBPlainKey = number | string | Date;
-type EZDBKey = EZDBPlainKey | Array<EZDBPlainKey>
+export type EZDBPlainKey = number | string | Date;
+export type EZDBKey = EZDBPlainKey | Array<EZDBPlainKey>
 
-type EZDBPlainStorable  = string | number | boolean | symbol | object;
-type EZDBObjectStorable = { [key:string] : EZDBPlainStorable };
-type EZDBStorable = EZDBPlainStorable | EZDBObjectStorable;
+export type EZDBPlainStorable  = string | number | boolean | symbol | object;
+export type EZDBObjectStorable = { [key:string] : EZDBPlainStorable };
+export type EZDBStorable = EZDBPlainStorable | EZDBObjectStorable;
 
-type EZDBKeyValuePair = {
+export type EZDBKeyValuePair = {
 	key : EZDBPlainKey,
 	value : EZDBPlainStorable
 }

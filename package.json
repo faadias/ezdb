@@ -1,0 +1,39 @@
+{
+  "name": "ezdb",
+  "version": "1.0.0",
+  "description": "Yet another wrapper for IndexedDB",
+  "main": "index.js",
+  "bin": {
+    "ezdb": "ezdb.js"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "install": "npm install ts-loader webpack typescript --save-dev",
+	"build-test" : "tsc test/test.ts --target es6 && rm src/*.js",
+	"build": "webpack",
+    "watch": "webpack --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faadias/ezdb.git"
+  },
+  "keywords": [
+    "IndexedDB",
+    "database",
+    "sgbd",
+    "storage"
+  ],
+  "author": "Felipe Dias",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/faadias/ezdb/issues"
+  },
+  "homepage": "https://github.com/faadias/ezdb#readme",
+  "devDependencies": {
+    "ts-loader": "^3.2.0",
+    "typescript": "^2.6.2",
+    "webpack": "^3.10.0"
+  }
+}

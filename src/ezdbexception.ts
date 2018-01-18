@@ -1,4 +1,4 @@
-class EZDBException extends DOMException {
+export default class EZDBException extends DOMException {
 	constructor(message : string) {
 		super(message, "EZDBException");
 	}

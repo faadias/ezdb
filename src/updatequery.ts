@@ -1,4 +1,9 @@
-class UpdateQuery extends Query {
+import Query from "./query";
+import Store from "./store";
+import { EZDBObjectStorable } from "./types";
+import EZDBException from "./ezdbexception";
+
+export default class UpdateQuery extends Query {
 	private setter : (record : EZDBObjectStorable) => void;
 
 	constructor(store : Store) {

@@ -1,4 +1,9 @@
-class DBManager {
+import EZDBException from "./ezdbexception";
+import Database from "./database";
+import { EZDBUpdateType } from "./enums";
+import { EZDBDatabaseConfig } from "./types";
+
+export default class DBManager {
 	private static instance : DBManager;
 	private dbs : Map<string,Database>;
 	private defaultUpdateType : EZDBUpdateType;
