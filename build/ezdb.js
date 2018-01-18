@@ -533,6 +533,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const dbmanager_1 = __webpack_require__(2);
 const enums_1 = __webpack_require__(1);
 (function () {
+    if (!this.indexedDB) {
+        console.log("IndexedDB not supported!");
+        return;
+    }
     this.ezdb = dbmanager_1.default.Instance;
     this.EZDBUpdateType = enums_1.EZDBUpdateType;
     this.EZDBQueryReturn = enums_1.EZDBQueryReturn;
@@ -570,9 +574,6 @@ class Database {
     }
     get Closed() {
         return this.closed;
-    }
-    set Closed(value) {
-        this.closed = value;
     }
     get Name() {
         return this.idbDatabase.name;

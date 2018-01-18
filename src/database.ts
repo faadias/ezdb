@@ -32,9 +32,6 @@ export default class Database {
 	get Closed() {
 		return this.closed;
 	}
-	set Closed(value:boolean) {
-		this.closed = value;
-	}
 
 	get Name() {
 		return this.idbDatabase.name;
