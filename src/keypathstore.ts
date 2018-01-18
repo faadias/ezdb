@@ -10,6 +10,43 @@ class KeyPathStore extends Store {
 		return this.keyPath;
 	}
 
+	buildRequest(recordOrKey : EZDBObjectStorable | EZDBKey, idbTransaction : IDBTransaction, type : EZDBDMLType) {
+		let key : EZDBKey;
+		let record : EZDBObjectStorable; 
+		let request : IDBRequest;
+		let idbStore = idbTransaction.objectStore(this.Name);
+		switch(type) {
+			case "ins":
+				request = idbStore.add(recordOrKey);
+				break;
+
+			case "upd":
+				request = idbStore.put(recordOrKey);
+				break;
+
+			case "del":
+				if (recordOrKey instanceof Array || typeof recordOrKey !== "object") { //EZDBKey === Array<EZDBPlainKey> | EZDBPlainKey
+					key = recordOrKey;
+				}
+				else { //EZDBObjectStorable
+					record = <EZDBObjectStorable>recordOrKey;
+					key = <Array<EZDBPlainKey>> this.Key.map(attr => record[attr]);
+					if (key.length === 1) key = key[0];
+				}
+				request = idbStore.delete(key);
+				break;
+
+			default: //sel
+				record = <EZDBObjectStorable>recordOrKey;
+				key = <Array<EZDBPlainKey>>this.Key.map(attr => record[attr]);
+				if (key.length === 1) key = key[0];
+				request = idbStore.get(key);
+				break;
+		}
+
+		return request;
+	}
+
 	insert(records : Array<EZDBObjectStorable>) {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
@@ -17,7 +54,7 @@ class KeyPathStore extends Store {
 				return;
 			}
 
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
+			const idbTransaction = this.IdbTranWrite;
 
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -32,7 +69,7 @@ class KeyPathStore extends Store {
 				}
 
 				try {
-					const insertRequest = idbStore.add(record);
+					const insertRequest = this.buildRequest(record, idbTransaction, "ins");
 					insertRequest.onsuccess = () => {
 						if (this.AutoIncrement && record[this.Key[0]] === undefined) {
 							record[this.Key[0]] = insertRequest.result;
@@ -66,7 +103,7 @@ class KeyPathStore extends Store {
 				return;
 			}
 			
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
+			const idbTransaction = this.IdbTranWrite;
 			
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -83,7 +120,7 @@ class KeyPathStore extends Store {
 					}
 
 					try {
-						const updateRequest = idbStore.put(record);
+						const updateRequest = this.buildRequest(record, idbTransaction, "upd");
 						updateRequest.onsuccess = () => {
 							numberOfAffectedRecords++;
 						}
@@ -105,8 +142,7 @@ class KeyPathStore extends Store {
 					}
 
 					try {
-						const key = this.Key.map(attr => record[attr]);
-						const queryRequest = idbStore.get(key);
+						const queryRequest = this.buildRequest(record, idbTransaction, "sel");
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
 							let updatedRecord = retrievedRecord || record;
@@ -115,7 +151,7 @@ class KeyPathStore extends Store {
 								Object.keys(record).forEach(attr => updatedRecord[attr] = record[attr]);
 							}
 							
-							const updateRequest = idbStore.put(updatedRecord);
+							const updateRequest = this.buildRequest(updatedRecord, idbTransaction, "upd");
 							updateRequest.onsuccess = () => {
 								numberOfAffectedRecords++;
 							}
@@ -142,14 +178,13 @@ class KeyPathStore extends Store {
 					}
 
 					try {
-						const key = this.Key.map(attr => record[attr]);
-						const queryRequest = idbStore.get(key);
+						const queryRequest = this.buildRequest(record, idbTransaction, "sel");
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
 							if (retrievedRecord) {
 								Object.keys(record).forEach(attr => retrievedRecord[attr] = record[attr]);
 								
-								const updateRequest = idbStore.put(retrievedRecord);
+								const updateRequest = this.buildRequest(retrievedRecord, idbTransaction, "upd");
 								updateRequest.onsuccess = () => {
 									numberOfAffectedRecords++;
 								}
@@ -177,12 +212,11 @@ class KeyPathStore extends Store {
 					}
 
 					try {
-						const key = this.Key.map(attr => record[attr]);
-						const queryRequest = idbStore.get(key);
+						const queryRequest = this.buildRequest(record, idbTransaction, "sel");
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
 							if (retrievedRecord) {
-								const updateRequest = idbStore.put(record);
+								const updateRequest = this.buildRequest(record, idbTransaction, "upd");
 								updateRequest.onsuccess = () => {
 									numberOfAffectedRecords++;
 								}
@@ -219,7 +253,7 @@ class KeyPathStore extends Store {
 				return;
 			}
 			
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
+			const idbTransaction = this.IdbTranWrite;
 			
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -234,22 +268,12 @@ class KeyPathStore extends Store {
 					break;
 				}
 
-				try {
-					let key : EZDBPlainKey | Array<EZDBPlainKey>;
-
-					if (recordOrKey instanceof Array || typeof recordOrKey !== "object") { //EZDBKey === <Array<EZDBPlainKey> | EZDBPlainKey
-						key = recordOrKey;
-					}
-					else { //EZDBObjectStorable
-						let record = <EZDBObjectStorable>recordOrKey;
-						key = <Array<EZDBPlainKey>> this.Key.map(attr => record[attr]);
-					}
-					
-					const queryRequest = idbStore.get(key);
+				try {					
+					const queryRequest = this.buildRequest(recordOrKey, idbTransaction, "sel");
 					queryRequest.onsuccess = () => {
 						let retrievedRecord = queryRequest.result;
 						if (retrievedRecord) {
-							const deleteRequest = idbStore.delete(key);
+							const deleteRequest = this.buildRequest(recordOrKey, idbTransaction, "del");
 							deleteRequest.onsuccess = () => {
 								numberOfAffectedRecords++;
 							}

@@ -20,12 +20,20 @@ type EZDBIndexConfig = {
 }
 
 
+type EZDBDMLType = "ins" | "upd" | "del" | "sel";
+
+
+type EZDBTransactionDMLType = "ins" | "upd" | "del";
 type EZDBTransactionUnit = {
-	records : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>,
-	storeName : string,
-	type : EZDBTransactionDML
+	recordsOrKeys : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>,
+	store : Store,
+	dmlType : EZDBTransactionDMLType
 }
-type EZDBTransactionDML = "ins" | "upd" | "del";
+type EZDBTransactionReturn = {
+	"ins" : number,
+	"upd" : number,
+	"del" : number
+}
 
 
 type EZDBCursorType = "next" | "prev" | "nextunique" | "prevunique";

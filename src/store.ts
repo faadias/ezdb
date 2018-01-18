@@ -21,16 +21,14 @@ abstract class Store {
 	
 	abstract get Key() : Array<string> | null;
 
-	get IdbStoreAndTranForWrite() : [IDBObjectStore, IDBTransaction] {
+	get IdbTranWrite() : IDBTransaction {
 		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READWRITE);
-		const idbStore = idbTransaction.objectStore(this.name);
-		return [idbStore,idbTransaction];
+		return idbTransaction;
 	}
 
-	get IdbStoreAndTranForRead() : [IDBObjectStore, IDBTransaction] {
+	get IdbTranRead() : IDBTransaction {
 		const idbTransaction = this.database.IdbDatabase.transaction(this.name, EZDBTransactionType.READONLY);
-		const idbStore = idbTransaction.objectStore(this.name);
-		return [idbStore,idbTransaction];
+		return idbTransaction;
 	}
 
 	truncate() {
@@ -40,9 +38,9 @@ abstract class Store {
 				return;
 			}
 
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
+			const idbTransaction = this.IdbTranWrite;
 
-			idbStore.clear();
+			idbTransaction.objectStore(this.Name).clear();
 			
 			idbTransaction.oncomplete = () => {
 				resolve();
@@ -57,6 +55,8 @@ abstract class Store {
 		
 		return promise;
 	}
+
+	abstract buildRequest(recordOrKey : EZDBStorable | EZDBKeyValuePair | EZDBKey, idbTransaction : IDBTransaction, type : EZDBDMLType) : IDBRequest;
 
 	abstract insert(records : Array<EZDBStorable | EZDBKeyValuePair>) : Promise<number>;
 	abstract update(records? : Array<EZDBStorable | EZDBKeyValuePair>, type? : EZDBUpdateType) : Promise<number> | UpdateQuery;

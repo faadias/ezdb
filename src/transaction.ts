@@ -7,20 +7,17 @@ class Transaction {
 		this.database = database;
 		this.storeNames = new Set<string>();
 
-		this.tranUnits = new Array<any>();
+		this.tranUnits = new Array<EZDBTransactionUnit>();
 	}
 
-	private addTransactionUnit(type : EZDBTransactionDML, storeName : string, recordsOrKeys : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>) {
+	private addTransactionUnit(dmlType : EZDBTransactionDMLType, storeName : string, recordsOrKeys : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>) {
 		if (this.database.StoreNames.indexOf(storeName) === -1) {
 			throw new EZDBException(`Store ${storeName} not found in database ${this.database.Name}!`);
 		}
 
 		this.storeNames.add(storeName);
-		this.tranUnits.push({
-			records : recordsOrKeys,
-			storeName : storeName,
-			type : type
-		});
+		let store = this.database.store(storeName);
+		this.tranUnits.push({recordsOrKeys, store, dmlType});
 	}
 
 	insert(storeName : string, records : Array<EZDBStorable | EZDBKeyValuePair>) {
@@ -47,7 +44,7 @@ class Transaction {
 			
 			let error : string;
 			let idbTransaction = this.database.IdbDatabase.transaction(Array.from(this.storeNames), EZDBTransactionType.READWRITE);
-			let returnedAffectedRows : {[key:string] : number} = {
+			let returnedAffectedRows : EZDBTransactionReturn = {
 				"ins" : 0,
 				"upd" : 0,
 				"del" : 0
@@ -63,46 +60,17 @@ class Transaction {
 				reject(new EZDBException(`A transaction in database ${this.database.Name} has been aborted!`));
 			}
 
-			this.tranUnits.forEach(unit => {
-				const idbStore = idbTransaction.objectStore(unit.storeName);
-				let request : IDBRequest;
-				let type : string = unit.type;
-				switch(type) {
-					case "ins":
-						unit.records.forEach((record : any) => {
-							request = idbStore.add(record);
-							request.onsuccess = () => {
-								returnedAffectedRows[type]++;
-							}
-							request.onerror = () => {
-								error = `${request.error.message} Record: ${JSON.stringify(record)}`;
-							}
-						});
-						break;
+			this.tranUnits.forEach(tranUnit => {
+				for (let recordOrKey of tranUnit.recordsOrKeys) {
+					if (error) break;
 
-					case "upd":
-						unit.records.forEach((record : any) => {
-							request = idbStore.put(record);
-							request.onsuccess = () => {
-								returnedAffectedRows[type]++;
-							}
-							request.onerror = () => {
-								error = `${request.error.message} Record: ${JSON.stringify(record)}`;
-							}
-						});
-						break;
-
-					case "del":
-						unit.records.forEach((record : any) => {
-							request = idbStore.delete(record);
-							request.onsuccess = () => {
-								returnedAffectedRows[type]++;
-							}
-							request.onerror = () => {
-								error = `${request.error.message} Record: ${JSON.stringify(record)}`;
-							}
-						});
-						break;
+					const request : IDBRequest = tranUnit.store.buildRequest(recordOrKey, idbTransaction, tranUnit.dmlType);
+					request.onsuccess = () => {
+						returnedAffectedRows[tranUnit.dmlType]++;
+					}
+					request.onerror = () => {
+						error = `${request.error.message} Record: ${JSON.stringify(recordOrKey)}`;
+					}
 				}
 			});
 		});

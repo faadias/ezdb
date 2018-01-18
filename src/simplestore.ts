@@ -11,6 +11,60 @@ class SimpleStore extends Store {
 		return typeof record === "object" && record.hasOwnProperty("key") && record.hasOwnProperty("value");
 	}
 
+	buildRequest(recordOrKey : EZDBStorable | EZDBKey, idbTransaction : IDBTransaction, type : EZDBDMLType) {
+		let key : EZDBPlainKey | undefined;
+		let record : EZDBStorable; 
+		let request : IDBRequest;
+		let idbStore = idbTransaction.objectStore(this.Name);
+
+		switch(type) {
+			case "ins":
+				key = undefined;
+				record = recordOrKey;
+				if (this.isKeyValueRecord(recordOrKey)) {
+					const keyValueRecord = <EZDBKeyValuePair>recordOrKey;
+					key = keyValueRecord.key;
+					record = keyValueRecord.value;
+				}
+				request = idbStore.add(record, key);
+				break;
+
+			case "upd":
+				key = undefined;
+				record = recordOrKey;
+				if (this.isKeyValueRecord(record)) {
+					const keyValueRecord = <EZDBKeyValuePair>record;
+					key = keyValueRecord.key;
+					record = keyValueRecord.value;
+				}
+
+				request = idbStore.put(record, key);
+				break;
+
+			case "del":
+				key = <EZDBPlainKey>recordOrKey;
+				if (this.isKeyValueRecord(recordOrKey)) {
+					const keyValueRecord = <EZDBKeyValuePair>recordOrKey;
+					key = keyValueRecord.key;
+				}
+
+				request = idbStore.delete(key);
+				break;
+
+			default: //sel
+				key = <EZDBPlainKey>recordOrKey;
+				if (this.isKeyValueRecord(recordOrKey)) {
+					const keyValueRecord = <EZDBKeyValuePair>recordOrKey;
+					key = keyValueRecord.key;
+				}
+
+				request = idbStore.get(key);
+				break;
+		}
+
+		return request;
+	}
+
 	insert(records : Array<EZDBStorable | EZDBKeyValuePair>) {
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
@@ -18,7 +72,7 @@ class SimpleStore extends Store {
 				return;
 			}
 
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
+			const idbTransaction = this.IdbTranWrite;
 
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -32,17 +86,8 @@ class SimpleStore extends Store {
 					break;
 				}
 
-				try {
-					let key : EZDBPlainKey | undefined = undefined;
-					let value : EZDBStorable = record;
-
-					if (this.isKeyValueRecord(record)) {
-						const keyValueRecord = <EZDBKeyValuePair>record;
-						key = keyValueRecord.key;
-						value = keyValueRecord.value;
-					}
-
-					const insertRequest = idbStore.add(value, key);
+				try {				
+					const insertRequest = this.buildRequest(record, idbTransaction, "ins");
 					insertRequest.onsuccess = () => {
 						numberOfAffectedRecords++;
 					}
@@ -69,7 +114,7 @@ class SimpleStore extends Store {
 				return;
 			}
 			
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
+			const idbTransaction = this.IdbTranWrite;
 			
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -86,17 +131,8 @@ class SimpleStore extends Store {
 						break;
 					}
 
-					let key : EZDBPlainKey | undefined = undefined;
-					let value : EZDBStorable = record;
-
-					if (this.isKeyValueRecord(record)) {
-						const keyValueRecord = <EZDBKeyValuePair>record;
-						key = keyValueRecord.key;
-						value = keyValueRecord.value;
-					}
-
 					try {
-						const updateRequest = idbStore.put(value, key);
+						const updateRequest = this.buildRequest(record, idbTransaction, "upd");
 						updateRequest.onsuccess = () => {
 							numberOfAffectedRecords++;
 						}
@@ -118,18 +154,14 @@ class SimpleStore extends Store {
 						break;
 					}
 
+					if (!this.isKeyValueRecord(record)) continue; //If I want to update an existing record, it's mandatory to inform the key
+
 					try {
-						if (!this.isKeyValueRecord(record)) continue; //If I want to update an existing record, it's mandatory to inform the key
-
-						const keyValueRecord = <EZDBKeyValuePair>record;
-						const key = keyValueRecord.key;
-						const value = keyValueRecord.value;
-
-						const queryRequest = idbStore.get(key);
+						const queryRequest = this.buildRequest(record, idbTransaction, "sel");
 						queryRequest.onsuccess = () => {
 							let retrievedRecord = queryRequest.result;
 							if (retrievedRecord !== undefined) {
-								const updateRequest = idbStore.put(value, key);
+								const updateRequest = this.buildRequest(record, idbTransaction, "upd");
 								updateRequest.onsuccess = () => {
 									numberOfAffectedRecords++;
 								}
@@ -162,7 +194,7 @@ class SimpleStore extends Store {
 				return;
 			}
 			
-			const [idbStore,idbTransaction] = this.IdbStoreAndTranForWrite;
+			const idbTransaction = this.IdbTranWrite;
 			
 			let numberOfAffectedRecords = 0;
 			let error : string;
@@ -178,18 +210,11 @@ class SimpleStore extends Store {
 				}
 
 				try {
-					let key : EZDBPlainKey = <EZDBPlainKey>recordOrKey;
-
-					if (this.isKeyValueRecord(recordOrKey)) {
-						const keyValueRecord = <EZDBKeyValuePair>recordOrKey;
-						key = keyValueRecord.key;
-					}
-					
-					const queryRequest = idbStore.get(key);
+					const queryRequest = this.buildRequest(recordOrKey, idbTransaction, "sel");
 					queryRequest.onsuccess = () => {
 						let retrievedRecord = queryRequest.result;
 						if (retrievedRecord !== undefined) {
-							const deleteRequest = idbStore.delete(key);
+							const deleteRequest = this.buildRequest(recordOrKey, idbTransaction, "del");
 							deleteRequest.onsuccess = () => {
 								numberOfAffectedRecords++;
 							}

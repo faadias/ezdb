@@ -88,7 +88,8 @@ abstract class Query {
 	}
 
 	protected buildRequest(isKeyCursor : boolean, isCount : boolean) : [IDBRequest,IDBTransaction] {
-		const [idbStore,idbTransaction] = this instanceof SelectQuery ? this.store.IdbStoreAndTranForRead : this.store.IdbStoreAndTranForWrite;
+		const idbTransaction = this instanceof SelectQuery ? this.store.IdbTranRead : this.store.IdbTranWrite;
+		const idbStore = idbTransaction.objectStore(this.store.Name);
 
 		let range = this.buildRange();
 
