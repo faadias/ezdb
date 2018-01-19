@@ -40,58 +40,67 @@ export default class SelectQuery extends Query {
 	go() : Promise<Array<EZDBStorable> | Array<EZDBKeyValuePair> | Array<EZDBKey>> {
 		let promise = new Promise<Array<EZDBStorable> | Array<EZDBKeyValuePair> | Array<EZDBKey>>((resolve, reject) => {
 			
+			let results = new Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>();
+			let error : string | undefined = undefined;
+
+			const idbTransaction = this.store.IdbTranRead;
+			idbTransaction.oncomplete = () => resolve(results);
+			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
+			
+
 			try {
-				const idbTransaction = this.store.IdbTranRead;
 				const isKeyCursor = this.returnedValues === EZDBQueryReturn.KEYS;
 				const request = this.buildRequest(idbTransaction, isKeyCursor, false);
-
-				let results = new Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>();
-
-				idbTransaction.oncomplete = () => {
-					resolve(results);
-				}
-				idbTransaction.onabort = () => {
-					reject(new EZDBException(`A query in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
-				}
 
 				request.onsuccess = () => {
 					let cursor : IDBCursor = request.result;
 					let reachedLimit = this.Limit !== 0 && results.length === this.Limit;
 					if (cursor && !reachedLimit) {
-						switch (this.returnedValues) {
-							case EZDBQueryReturn.VALUES:
-								results.push((<IDBCursorWithValue>cursor).value);
-								break;
+						try {
+							switch (this.returnedValues) {
+								case EZDBQueryReturn.VALUES:
+									results.push((<IDBCursorWithValue>cursor).value);
+									break;
 
-							case EZDBQueryReturn.KEYS:
-								results.push(cursor.primaryKey);
-								break;
+								case EZDBQueryReturn.KEYS:
+									results.push(cursor.primaryKey);
+									break;
 
-							case EZDBQueryReturn.KEYVALUES:
-								results.push({
-									key : cursor.primaryKey,
-									value : (<IDBCursorWithValue>cursor).value
-								});
-								break;
+								case EZDBQueryReturn.KEYVALUES:
+									results.push({
+										key : cursor.primaryKey,
+										value : (<IDBCursorWithValue>cursor).value
+									});
+									break;
 
-							case EZDBQueryReturn.INDEXVALUES:
-								results.push(cursor.key);
-								break;
+								case EZDBQueryReturn.INDEXVALUES:
+									results.push(cursor.key);
+									break;
 
-							case EZDBQueryReturn.KEYINDEXVALUES:
-								results.push({
-									key : cursor.primaryKey,
-									value : cursor.key,
-								});
-								break;
-						}
+								case EZDBQueryReturn.KEYINDEXVALUES:
+									results.push({
+										key : cursor.primaryKey,
+										value : cursor.key,
+									});
+									break;
+							}
 						
-						cursor.continue();
+							cursor.continue();
+						}
+						catch(e) {
+							error = `${e}`;
+							idbTransaction.abort();
+						}
 					}
 				}
+
+				request.onerror = () => {
+					error = `${request.error.message}`;
+				}
 			}
-			catch (error) {
-				reject(new EZDBException(`${error}`));
+			catch (e) {
+				error = `${e}`;
+				idbTransaction.abort();
 			}
 		});
 
@@ -100,28 +109,31 @@ export default class SelectQuery extends Query {
 
 	count() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
+			let error : string | undefined = undefined;
+			let count : number;
+
+			const idbTransaction = this.store.IdbTranRead;
+			idbTransaction.oncomplete = () => {
+				if (this.Limit !== 0) {
+					count = Math.min(count, this.Limit);
+				}
+				resolve(count);
+			}
+			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
+			
 			try {
-				const idbTransaction = this.store.IdbTranRead;
 				const request = this.buildRequest(idbTransaction, false, true);
-
-				let count : number;
-
-				idbTransaction.oncomplete = () => {
-					if (this.Limit !== 0) {
-						count = Math.min(count, this.Limit);
-					}
-					resolve(count);
-				}
-				idbTransaction.onabort = () => {
-					reject(new EZDBException(`A count in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
-				}
 
 				request.onsuccess = () => {
 					count = request.result;
 				}
+				request.onerror = () => {
+					error = `${request.error.message}`;
+				}
 			}
-			catch (error) {
-				reject(new EZDBException(`${error}`));
+			catch (e) {
+				error = `${e}`;
+				idbTransaction.abort();
 			}
 		});
 

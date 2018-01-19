@@ -57,23 +57,23 @@ export default class KeyPathStore extends Store {
 	}
 
 	insert(records : Array<EZDBObjectStorable>) {
+		if (!(records instanceof Array)) records = [records];
+
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject (new EZDBException(`Database ${this.Database.Name} is already closed! No data can be inserted in store ${this.Name}...`));
 				return;
 			}
 
-			const idbTransaction = this.IdbTranWrite;
-
 			let numberOfAffectedRecords = 0;
-			let error : string;
-			let transactionErrorOcurred = false;
+			let error : string | undefined = undefined;
 
+			const idbTransaction = this.IdbTranWrite;
 			idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
 			idbTransaction.onabort = () => reject(new EZDBException(error));
 
 			for (let record of records) {
-				if (transactionErrorOcurred) {
+				if (error !== undefined) {
 					break;
 				}
 
@@ -86,11 +86,11 @@ export default class KeyPathStore extends Store {
 						numberOfAffectedRecords++;
 					}
 					insertRequest.onerror = () => {
-						transactionErrorOcurred = true;
-						if (!error) error = `${insertRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+						error = `${insertRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 					}
-				} catch (error) {
-					reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
+				} catch (e) {
+					error = `${e} Record: ${JSON.stringify(record)}`;
+					idbTransaction.abort();
 					break;
 				}
 			}
@@ -106,25 +106,25 @@ export default class KeyPathStore extends Store {
 			return new UpdateQuery(this);
 		}
 
+		if (!(records instanceof Array)) records! = [records];
+
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be updated in store ${this.Name}...`));
 				return;
 			}
 			
-			const idbTransaction = this.IdbTranWrite;
-			
 			let numberOfAffectedRecords = 0;
-			let error : string;
-			let transactionErrorOcurred = false;
+			let error : string | undefined = undefined;
 
+			const idbTransaction = this.IdbTranWrite;
 			idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
 			idbTransaction.onabort = () => reject(new EZDBException(error));
 			
 			switch(type){
 				case EZDBUpdateType.REPLACE_INSERT:
 				for (let record of records) {
-					if (transactionErrorOcurred) {
+					if (error !== undefined) {
 						break;
 					}
 
@@ -134,11 +134,11 @@ export default class KeyPathStore extends Store {
 							numberOfAffectedRecords++;
 						}
 						updateRequest.onerror = () => {
-							transactionErrorOcurred = true;
-							if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+							error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
-					} catch (error) {
-						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
+					} catch (e) {
+						error = `${e} Record: ${JSON.stringify(record)}`;
+						idbTransaction.abort();
 						break;
 					}
 				}
@@ -146,7 +146,7 @@ export default class KeyPathStore extends Store {
 				
 				case EZDBUpdateType.UPDATE_INSERT:
 				for (let record of records) {
-					if (transactionErrorOcurred) {
+					if (error !== undefined) {
 						break;
 					}
 
@@ -165,24 +165,22 @@ export default class KeyPathStore extends Store {
 								numberOfAffectedRecords++;
 							}
 							updateRequest.onerror = () => {
-								transactionErrorOcurred = true;
-								if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+								error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 							}
 						}
 						queryRequest.onerror = () => {
-							transactionErrorOcurred = true;
-							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+							error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
-					} catch (error) {
-						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
-						break;
+					} catch (e) {
+						error = `${e} Record: ${JSON.stringify(record)}`;
+						idbTransaction.abort();
 					}
 				}
 				break;
 				
 				case EZDBUpdateType.UPDATE_EXISTING:
 				for (let record of records) {
-					if (transactionErrorOcurred) {
+					if (error != undefined) {
 						break;
 					}
 
@@ -198,25 +196,23 @@ export default class KeyPathStore extends Store {
 									numberOfAffectedRecords++;
 								}
 								updateRequest.onerror = () => {
-									transactionErrorOcurred = true;
-									if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+									error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 								}
 							}
 						}
 						queryRequest.onerror = () => {
-							transactionErrorOcurred = true;
-							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+							error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
-					} catch (error) {
-						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
-						break;
+					} catch (e) {
+						error = `${e} Record: ${JSON.stringify(record)}`;
+						idbTransaction.abort();
 					}
 				}
 				break;
 
 				case EZDBUpdateType.REPLACE_EXISTING:
 				for (let record of records) {
-					if (transactionErrorOcurred) {
+					if (error !== undefined) {
 						break;
 					}
 
@@ -230,18 +226,16 @@ export default class KeyPathStore extends Store {
 									numberOfAffectedRecords++;
 								}
 								updateRequest.onerror = () => {
-									transactionErrorOcurred = true;
-									if (!error) error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+									error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 								}
 							}
 						}
 						queryRequest.onerror = () => {
-							transactionErrorOcurred = true;
-							if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+							error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
 						}
-					} catch (error) {
-						reject(new EZDBException(`${error} Record: ${JSON.stringify(record)}`));
-						break;
+					} catch (e) {
+						error = `${e} Record: ${JSON.stringify(record)}`;
+						idbTransaction.abort();
 					}
 				}
 				break;
@@ -256,24 +250,24 @@ export default class KeyPathStore extends Store {
 			return new DeleteQuery(this);
 		}
 
+		if (!(recordsOrKeys instanceof Array)) recordsOrKeys! = [recordsOrKeys];
+
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
 				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`));
 				return;
 			}
 			
-			const idbTransaction = this.IdbTranWrite;
-			
 			let numberOfAffectedRecords = 0;
-			let error : string;
-			let transactionErrorOcurred = false;
+			let error : string | undefined = undefined;
 
+			const idbTransaction = this.IdbTranWrite;
 			idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
 			idbTransaction.onabort = () => reject(new EZDBException(error));
 			
 
 			for (let recordOrKey of recordsOrKeys) {
-				if (transactionErrorOcurred) {
+				if (error !== undefined) {
 					break;
 				}
 
@@ -287,18 +281,16 @@ export default class KeyPathStore extends Store {
 								numberOfAffectedRecords++;
 							}
 							deleteRequest.onerror = () => {
-								transactionErrorOcurred = true;
-								if (!error) error = `${deleteRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
+								error = `${deleteRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
 							}
 						}
 					}
 					queryRequest.onerror = () => {
-						transactionErrorOcurred = true;
-						if (!error) error = `${queryRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
+						error = `${queryRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
 					}
-				} catch (error) {
-					reject(new EZDBException(`${error} Record: ${JSON.stringify(recordOrKey)}`));
-					break;
+				} catch (e) {
+					error = `${e} Record or key: ${JSON.stringify(recordOrKey)}`;
+					idbTransaction.abort();
 				}
 			}
 		});

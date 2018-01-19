@@ -17,22 +17,21 @@ export default class UpdateQuery extends Query {
 
 	go() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
+			let error : string | undefined = undefined;
+			let affectedRows = 0;
+
 			if (!this.setter) {
-				resolve(0);
+				resolve(affectedRows);
 				return;
 			}
 
+			const idbTransaction = this.store.IdbTranWrite;
+			idbTransaction.oncomplete = () => resolve(affectedRows);
+			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
+
 			try {
-				const idbTransaction = this.store.IdbTranWrite;
 				const request = this.buildRequest(idbTransaction, false, false);
 
-				let affectedRows = 0;
-
-				idbTransaction.oncomplete = () => resolve(affectedRows);
-				idbTransaction.onabort = () => {
-					reject(new EZDBException(`An update in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
-				}
-				
 				request.onsuccess = () => {
 					let cursor : IDBCursorWithValue = request.result;
 					let reachedLimit = this.Limit !== 0 && affectedRows === this.Limit;
@@ -52,14 +51,20 @@ export default class UpdateQuery extends Query {
 
 							affectedRows++;
 						}
-						catch (error) {
-							reject(new EZDBException(`${error} Record: ${JSON.stringify(record)} (${this.store.Name})`));
+						catch (e) {
+							error = `${e} Record: ${JSON.stringify(record)} (store: ${this.store.Name})`;
+							idbTransaction.abort();
 						}
 					}
 				}
+
+				request.onerror = () => {
+					error = `${request.error.message}`;
+				}
 			}
-			catch (error) {
-				reject(new EZDBException(`${error}`));
+			catch (e) {
+				error = `${e}`;
+				idbTransaction.abort();
 			}
 		});
 

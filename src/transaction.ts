@@ -47,37 +47,42 @@ export default class Transaction {
 				return;
 			}
 			
-			let error : string;
-			let idbTransaction = this.database.IdbDatabase.transaction(Array.from(this.storeNames), EZDBTransactionType.READWRITE);
 			let returnedAffectedRows : EZDBTransactionReturn = {
 				"ins" : 0,
 				"upd" : 0,
 				"del" : 0
 			};
+			let error : string | undefined = undefined;
+			
+			let idbTransaction = this.database.IdbDatabase.transaction(Array.from(this.storeNames), EZDBTransactionType.READWRITE);
+			idbTransaction.oncomplete = () => resolve(returnedAffectedRows);
+			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
 
-			idbTransaction.oncomplete = () => {
-				resolve(returnedAffectedRows);
-			}
-			idbTransaction.onerror = () => {
-				reject(new EZDBException(error));
-			}
-			idbTransaction.onabort = () => {
-				reject(new EZDBException(`A transaction in database ${this.database.Name} has been aborted!`));
-			}
+			for (let tranUnit of this.tranUnits) {
+				if (error !== undefined) {
+					break;
+				}
 
-			this.tranUnits.forEach(tranUnit => {
 				for (let recordOrKey of tranUnit.recordsOrKeys) {
-					if (error) break;
-
-					const request : IDBRequest = tranUnit.store.buildRequest(recordOrKey, idbTransaction, tranUnit.dmlType);
-					request.onsuccess = () => {
-						returnedAffectedRows[tranUnit.dmlType]++;
+					if (error !== undefined) {
+						break;
 					}
-					request.onerror = () => {
-						error = `${request.error.message} Record: ${JSON.stringify(recordOrKey)}`;
+
+					try {
+						const request : IDBRequest = tranUnit.store.buildRequest(recordOrKey, idbTransaction, tranUnit.dmlType);
+						request.onsuccess = () => {
+							returnedAffectedRows[tranUnit.dmlType]++;
+						};
+						request.onerror = () => {
+							error = `${request.error.message} Record: ${JSON.stringify(recordOrKey)}`;
+						};
+					}
+					catch (e) {
+						error = `${e}`;
+						idbTransaction.abort();
 					}
 				}
-			});
+			}
 		});
 		
 		return promise;

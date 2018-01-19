@@ -54,7 +54,7 @@ export default abstract class Store {
 				resolve();
 			}
 			idbTransaction.onerror = () => {
-				reject(new EZDBException(`An error occurred while trying to truncate store ${this.Name} (database ${this.database.Name})!`));
+				reject(new EZDBException(`${idbTransaction.error.message} (database ${this.database.Name})!`));
 			}
 			idbTransaction.onabort = () => {
 				reject(new EZDBException(`The truncation of store ${this.Name} (database ${this.Database.Name}) has been aborted!`));

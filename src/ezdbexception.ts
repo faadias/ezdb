@@ -1,5 +1,5 @@
 export default class EZDBException extends DOMException {
-	constructor(message : string) {
+	constructor(message? : string) {
 		super(message, "EZDBException");
 	}
 }
