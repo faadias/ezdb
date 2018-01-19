@@ -1,6 +1,6 @@
 module.exports = {
 	//devtool: 'inline-source-map',
-	entry: './src/ezdb.ts',
+	entry: './src/main.ts',
 	output: {
 		path: __dirname + '/build',
 		filename: 'ezdb.js'
