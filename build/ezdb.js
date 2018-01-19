@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 6);
+/******/ 	return __webpack_require__(__webpack_require__.s = 5);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -116,7 +116,7 @@ var EZDBQueryReturn;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 const ezdbexception_1 = __webpack_require__(0);
-const database_1 = __webpack_require__(7);
+const database_1 = __webpack_require__(6);
 const enums_1 = __webpack_require__(1);
 class DBManager {
     constructor() {
@@ -246,7 +246,6 @@ exports.default = DBManager;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const selectquery_1 = __webpack_require__(5);
 class Query {
     constructor(store) {
         this.store = store;
@@ -309,14 +308,13 @@ class Query {
             else if (this.bounds.upper) {
                 range = IDBKeyRange.upperBound(this.bounds.upper.value, this.bounds.upper.open);
             }
-            else {
+            else if (this.bounds.lower) {
                 range = IDBKeyRange.lowerBound(this.bounds.lower.value, this.bounds.lower.open);
             }
         }
         return range;
     }
-    buildRequest(isKeyCursor, isCount) {
-        const idbTransaction = this instanceof selectquery_1.default ? this.store.IdbTranRead : this.store.IdbTranWrite;
+    buildRequest(idbTransaction, isKeyCursor, isCount) {
         const idbStore = idbTransaction.objectStore(this.store.Name);
         let range = this.buildRange();
         let cursorType = this.ascFlag ? "next" : "prev";
@@ -333,7 +331,7 @@ class Query {
         else {
             request = querySource.openCursor(range, cursorType);
         }
-        return [request, idbTransaction];
+        return request;
     }
     exec() {
         return this.go();
@@ -350,7 +348,7 @@ exports.default = Query;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 const enums_1 = __webpack_require__(1);
-const selectquery_1 = __webpack_require__(5);
+const selectquery_1 = __webpack_require__(8);
 const ezdbexception_1 = __webpack_require__(0);
 class Store {
     constructor(name, database, autoIncrement) {
@@ -409,127 +407,6 @@ exports.default = Store;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const query_1 = __webpack_require__(3);
-const enums_1 = __webpack_require__(1);
-const ezdbexception_1 = __webpack_require__(0);
-class SelectQuery extends query_1.default {
-    constructor(store) {
-        super(store);
-        this.returnedValues = enums_1.EZDBQueryReturn.VALUES;
-    }
-    values() {
-        this.returnedValues = enums_1.EZDBQueryReturn.VALUES;
-        return this;
-    }
-    keys() {
-        this.returnedValues = enums_1.EZDBQueryReturn.KEYS;
-        return this;
-    }
-    keyvalues() {
-        this.returnedValues = enums_1.EZDBQueryReturn.KEYVALUES;
-        return this;
-    }
-    indexvalues() {
-        this.returnedValues = enums_1.EZDBQueryReturn.INDEXVALUES;
-        return this;
-    }
-    keyindexvalues() {
-        this.returnedValues = enums_1.EZDBQueryReturn.KEYINDEXVALUES;
-        return this;
-    }
-    buildRequest(isCount) {
-        let isKeyCursor = this.returnedValues === enums_1.EZDBQueryReturn.KEYS;
-        return super.buildRequest(isKeyCursor, isCount);
-    }
-    go() {
-        let promise = new Promise((resolve, reject) => {
-            try {
-                const [request, idbTransaction] = this.buildRequest(false);
-                let results = new Array();
-                idbTransaction.oncomplete = () => {
-                    resolve(results);
-                };
-                idbTransaction.onerror = () => {
-                    reject(new ezdbexception_1.default(`An error occurred while trying to perform a query in store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
-                };
-                idbTransaction.onabort = () => {
-                    reject(new ezdbexception_1.default(`A query in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
-                };
-                request.onsuccess = () => {
-                    let cursor = request.result;
-                    let reachedLimit = this.Limit !== 0 && results.length === this.Limit;
-                    if (cursor && !reachedLimit) {
-                        switch (this.returnedValues) {
-                            case enums_1.EZDBQueryReturn.VALUES:
-                                results.push(cursor.value);
-                                break;
-                            case enums_1.EZDBQueryReturn.KEYS:
-                                results.push(cursor.primaryKey);
-                                break;
-                            case enums_1.EZDBQueryReturn.KEYVALUES:
-                                results.push({
-                                    key: cursor.primaryKey,
-                                    value: cursor.value
-                                });
-                                break;
-                            case enums_1.EZDBQueryReturn.INDEXVALUES:
-                                results.push(cursor.key);
-                                break;
-                            case enums_1.EZDBQueryReturn.KEYINDEXVALUES:
-                                results.push({
-                                    key: cursor.primaryKey,
-                                    value: cursor.key,
-                                });
-                                break;
-                        }
-                        cursor.continue();
-                    }
-                };
-            }
-            catch (error) {
-                reject(new ezdbexception_1.default(`${error}`));
-            }
-        });
-        return promise;
-    }
-    count() {
-        let promise = new Promise((resolve, reject) => {
-            try {
-                const [request, idbTransaction] = this.buildRequest(true);
-                let count;
-                idbTransaction.oncomplete = () => {
-                    if (this.Limit !== 0) {
-                        count = Math.min(count, this.Limit);
-                    }
-                    resolve(count);
-                };
-                idbTransaction.onerror = () => {
-                    reject(new ezdbexception_1.default(`An error occurred while trying to count store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
-                };
-                idbTransaction.onabort = () => {
-                    reject(new ezdbexception_1.default(`A count in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
-                };
-                request.onsuccess = () => {
-                    count = request.result;
-                };
-            }
-            catch (error) {
-                reject(new ezdbexception_1.default(`${error}`));
-            }
-        });
-        return promise;
-    }
-}
-exports.default = SelectQuery;
-
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
 const dbmanager_1 = __webpack_require__(2);
 const enums_1 = __webpack_require__(1);
 (function () {
@@ -544,13 +421,13 @@ const enums_1 = __webpack_require__(1);
 
 
 /***/ }),
-/* 7 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const keypathstore_1 = __webpack_require__(8);
+const keypathstore_1 = __webpack_require__(7);
 const simplestore_1 = __webpack_require__(11);
 const ezdbexception_1 = __webpack_require__(0);
 const dbmanager_1 = __webpack_require__(2);
@@ -615,7 +492,7 @@ exports.default = Database;
 
 
 /***/ }),
-/* 8 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -906,6 +783,120 @@ exports.default = KeyPathStore;
 
 
 /***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const query_1 = __webpack_require__(3);
+const enums_1 = __webpack_require__(1);
+const ezdbexception_1 = __webpack_require__(0);
+class SelectQuery extends query_1.default {
+    constructor(store) {
+        super(store);
+        this.returnedValues = enums_1.EZDBQueryReturn.VALUES;
+    }
+    values() {
+        this.returnedValues = enums_1.EZDBQueryReturn.VALUES;
+        return this;
+    }
+    keys() {
+        this.returnedValues = enums_1.EZDBQueryReturn.KEYS;
+        return this;
+    }
+    keyvalues() {
+        this.returnedValues = enums_1.EZDBQueryReturn.KEYVALUES;
+        return this;
+    }
+    indexvalues() {
+        this.returnedValues = enums_1.EZDBQueryReturn.INDEXVALUES;
+        return this;
+    }
+    keyindexvalues() {
+        this.returnedValues = enums_1.EZDBQueryReturn.KEYINDEXVALUES;
+        return this;
+    }
+    go() {
+        let promise = new Promise((resolve, reject) => {
+            try {
+                const idbTransaction = this.store.IdbTranRead;
+                const isKeyCursor = this.returnedValues === enums_1.EZDBQueryReturn.KEYS;
+                const request = this.buildRequest(idbTransaction, isKeyCursor, false);
+                let results = new Array();
+                idbTransaction.oncomplete = () => {
+                    resolve(results);
+                };
+                idbTransaction.onabort = () => {
+                    reject(new ezdbexception_1.default(`A query in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
+                };
+                request.onsuccess = () => {
+                    let cursor = request.result;
+                    let reachedLimit = this.Limit !== 0 && results.length === this.Limit;
+                    if (cursor && !reachedLimit) {
+                        switch (this.returnedValues) {
+                            case enums_1.EZDBQueryReturn.VALUES:
+                                results.push(cursor.value);
+                                break;
+                            case enums_1.EZDBQueryReturn.KEYS:
+                                results.push(cursor.primaryKey);
+                                break;
+                            case enums_1.EZDBQueryReturn.KEYVALUES:
+                                results.push({
+                                    key: cursor.primaryKey,
+                                    value: cursor.value
+                                });
+                                break;
+                            case enums_1.EZDBQueryReturn.INDEXVALUES:
+                                results.push(cursor.key);
+                                break;
+                            case enums_1.EZDBQueryReturn.KEYINDEXVALUES:
+                                results.push({
+                                    key: cursor.primaryKey,
+                                    value: cursor.key,
+                                });
+                                break;
+                        }
+                        cursor.continue();
+                    }
+                };
+            }
+            catch (error) {
+                reject(new ezdbexception_1.default(`${error}`));
+            }
+        });
+        return promise;
+    }
+    count() {
+        let promise = new Promise((resolve, reject) => {
+            try {
+                const idbTransaction = this.store.IdbTranRead;
+                const request = this.buildRequest(idbTransaction, false, true);
+                let count;
+                idbTransaction.oncomplete = () => {
+                    if (this.Limit !== 0) {
+                        count = Math.min(count, this.Limit);
+                    }
+                    resolve(count);
+                };
+                idbTransaction.onabort = () => {
+                    reject(new ezdbexception_1.default(`A count in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
+                };
+                request.onsuccess = () => {
+                    count = request.result;
+                };
+            }
+            catch (error) {
+                reject(new ezdbexception_1.default(`${error}`));
+            }
+        });
+        return promise;
+    }
+}
+exports.default = SelectQuery;
+
+
+/***/ }),
 /* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -922,24 +913,17 @@ class UpdateQuery extends query_1.default {
         this.setter = setter;
         return this;
     }
-    buildRequest() {
-        return super.buildRequest(false, false);
-    }
     go() {
         let promise = new Promise((resolve, reject) => {
             if (!this.setter) {
-                reject("No setter specified for this update. Aborting...");
+                resolve(0);
                 return;
             }
             try {
-                const [request, idbTransaction] = this.buildRequest();
+                const idbTransaction = this.store.IdbTranWrite;
+                const request = this.buildRequest(idbTransaction, false, false);
                 let affectedRows = 0;
-                idbTransaction.oncomplete = () => {
-                    resolve(affectedRows);
-                };
-                idbTransaction.onerror = () => {
-                    reject(new ezdbexception_1.default(`An error occurred while trying to perform an update in store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
-                };
+                idbTransaction.oncomplete = () => resolve(affectedRows);
                 idbTransaction.onabort = () => {
                     reject(new ezdbexception_1.default(`An update in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
                 };
@@ -947,11 +931,22 @@ class UpdateQuery extends query_1.default {
                     let cursor = request.result;
                     let reachedLimit = this.Limit !== 0 && affectedRows === this.Limit;
                     if (cursor && !reachedLimit) {
-                        let record = cursor.value;
-                        this.setter(record);
-                        cursor.update(record);
-                        cursor.continue();
-                        affectedRows++;
+                        let record;
+                        if (typeof this.setter === "function") {
+                            record = cursor.value;
+                            this.setter(record);
+                        }
+                        else {
+                            record = this.setter;
+                        }
+                        try {
+                            cursor.update(record);
+                            cursor.continue();
+                            affectedRows++;
+                        }
+                        catch (error) {
+                            reject(new ezdbexception_1.default(`${error} Record: ${JSON.stringify(record)} (${this.store.Name})`));
+                        }
                     }
                 };
             }
@@ -978,19 +973,14 @@ class DeleteQuery extends query_1.default {
     constructor(store) {
         super(store);
     }
-    buildRequest() {
-        return super.buildRequest(true, false);
-    }
     go() {
         let promise = new Promise((resolve, reject) => {
             try {
-                const [request, idbTransaction] = this.buildRequest();
+                const idbTransaction = this.store.IdbTranWrite;
+                const request = this.buildRequest(idbTransaction, true, false);
                 let affectedRows = 0;
                 idbTransaction.oncomplete = () => {
                     resolve(affectedRows);
-                };
-                idbTransaction.onerror = () => {
-                    reject(new ezdbexception_1.default(`An error occurred while trying to perform a delete in store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
                 };
                 idbTransaction.onabort = () => {
                     reject(new ezdbexception_1.default(`A delete in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
@@ -999,9 +989,15 @@ class DeleteQuery extends query_1.default {
                     let cursor = request.result;
                     let reachedLimit = this.Limit !== 0 && affectedRows === this.Limit;
                     if (cursor && !reachedLimit) {
-                        idbTransaction.objectStore(this.Store.Name).delete(cursor.primaryKey);
-                        cursor.continue();
-                        affectedRows++;
+                        let primaryKey = cursor.primaryKey;
+                        try {
+                            idbTransaction.objectStore(this.Store.Name).delete(primaryKey);
+                            cursor.continue();
+                            affectedRows++;
+                        }
+                        catch (error) {
+                            reject(new ezdbexception_1.default(`${error} Key: ${JSON.stringify(primaryKey)} (${this.store.Name})`));
+                        }
                     }
                 };
             }

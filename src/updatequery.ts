@@ -4,53 +4,57 @@ import { EZDBObjectStorable } from "./types";
 import EZDBException from "./ezdbexception";
 
 export default class UpdateQuery extends Query {
-	private setter : (record : EZDBObjectStorable) => void;
+	private setter : EZDBObjectStorable | ((record : EZDBObjectStorable) => void);
 
 	constructor(store : Store) {
 		super(store);
 	}
 
-	set(setter : (record : EZDBObjectStorable) => void) {
+	set(setter : EZDBObjectStorable | ((record : EZDBObjectStorable) => void)) {
 		this.setter = setter;
 		return this;
-	}
-
-	protected buildRequest() {
-		return super.buildRequest(false, false);
 	}
 
 	go() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
 			if (!this.setter) {
-				reject("No setter specified for this update. Aborting...");
+				resolve(0);
 				return;
 			}
 
 			try {
-				const [request, idbTransaction] = this.buildRequest();
+				const idbTransaction = this.store.IdbTranWrite;
+				const request = this.buildRequest(idbTransaction, false, false);
 
 				let affectedRows = 0;
 
-				idbTransaction.oncomplete = () => {
-					resolve(affectedRows);
-				}
-				idbTransaction.onerror = () => {
-					reject(new EZDBException(`An error occurred while trying to perform an update in store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
-				}
+				idbTransaction.oncomplete = () => resolve(affectedRows);
 				idbTransaction.onabort = () => {
 					reject(new EZDBException(`An update in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
 				}
-
+				
 				request.onsuccess = () => {
 					let cursor : IDBCursorWithValue = request.result;
 					let reachedLimit = this.Limit !== 0 && affectedRows === this.Limit;
 					if (cursor && !reachedLimit) {
-						let record : EZDBObjectStorable = cursor.value;
-						this.setter(record);
-						cursor.update(record);
-						cursor.continue();
+						let record : EZDBObjectStorable;
+						if (typeof this.setter === "function") {
+							record = cursor.value;
+							this.setter(record);
+						}
+						else {
+							record = this.setter;
+						}
 
-						affectedRows++;
+						try {
+							cursor.update(record);
+							cursor.continue();
+
+							affectedRows++;
+						}
+						catch (error) {
+							reject(new EZDBException(`${error} Record: ${JSON.stringify(record)} (${this.store.Name})`));
+						}
 					}
 				}
 			}

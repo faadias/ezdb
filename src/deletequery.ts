@@ -7,22 +7,16 @@ export default class DeleteQuery extends Query {
 		super(store)
 	}
 
-	protected buildRequest() {
-		return super.buildRequest(true, false);
-	}
-
 	go() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
 			try {
-				const [request, idbTransaction] = this.buildRequest();
+				const idbTransaction = this.store.IdbTranWrite;
+				const request = this.buildRequest(idbTransaction, true, false);
 
 				let affectedRows = 0;
 
 				idbTransaction.oncomplete = () => {
 					resolve(affectedRows);
-				}
-				idbTransaction.onerror = () => {
-					reject(new EZDBException(`An error occurred while trying to perform a delete in store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
 				}
 				idbTransaction.onabort = () => {
 					reject(new EZDBException(`A delete in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
@@ -32,10 +26,16 @@ export default class DeleteQuery extends Query {
 					let cursor : IDBCursor = request.result;
 					let reachedLimit = this.Limit !== 0 && affectedRows === this.Limit;
 					if (cursor && !reachedLimit) {
-						idbTransaction.objectStore(this.Store.Name).delete(cursor.primaryKey);	
-						cursor.continue();
+						let primaryKey = cursor.primaryKey;
+						try {
+							idbTransaction.objectStore(this.Store.Name).delete(primaryKey);	
+							cursor.continue();
 
-						affectedRows++;
+							affectedRows++;
+						}
+						catch (error) {
+							reject(new EZDBException(`${error} Key: ${JSON.stringify(primaryKey)} (${this.store.Name})`));
+						}
 					}
 				}
 			}

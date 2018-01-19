@@ -37,24 +37,18 @@ export default class SelectQuery extends Query {
 		return this;
 	}
 
-	protected buildRequest(isCount : boolean) {
-		let isKeyCursor = this.returnedValues === EZDBQueryReturn.KEYS;
-		return super.buildRequest(isKeyCursor, isCount);
-	}
-
 	go() : Promise<Array<EZDBStorable> | Array<EZDBKeyValuePair> | Array<EZDBKey>> {
 		let promise = new Promise<Array<EZDBStorable> | Array<EZDBKeyValuePair> | Array<EZDBKey>>((resolve, reject) => {
 			
 			try {
-				const [request, idbTransaction] = this.buildRequest(false);
+				const idbTransaction = this.store.IdbTranRead;
+				const isKeyCursor = this.returnedValues === EZDBQueryReturn.KEYS;
+				const request = this.buildRequest(idbTransaction, isKeyCursor, false);
 
 				let results = new Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>();
 
 				idbTransaction.oncomplete = () => {
 					resolve(results);
-				}
-				idbTransaction.onerror = () => {
-					reject(new EZDBException(`An error occurred while trying to perform a query in store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
 				}
 				idbTransaction.onabort = () => {
 					reject(new EZDBException(`A query in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));
@@ -107,7 +101,8 @@ export default class SelectQuery extends Query {
 	count() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
 			try {
-				const [request,idbTransaction] = this.buildRequest(true);
+				const idbTransaction = this.store.IdbTranRead;
+				const request = this.buildRequest(idbTransaction, false, true);
 
 				let count : number;
 
@@ -116,9 +111,6 @@ export default class SelectQuery extends Query {
 						count = Math.min(count, this.Limit);
 					}
 					resolve(count);
-				}
-				idbTransaction.onerror = () => {
-					reject(new EZDBException(`An error occurred while trying to count store ${this.Store.Name} (database ${this.Store.Database.Name})!`));
 				}
 				idbTransaction.onabort = () => {
 					reject(new EZDBException(`A count in store ${this.Store.Name} (database ${this.Store.Database.Name}) has been aborted!`));

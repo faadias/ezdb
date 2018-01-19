@@ -1,9 +1,8 @@
 import Store from "./store";
 import { EZDBStorable, EZDBCursorType } from "./types";
-import SelectQuery from "./selectquery";
 
 export default abstract class Query {
-	private store : Store;
+	protected store : Store;
 	private distinctFlag : boolean;
 	private ascFlag : boolean;
 	private limitValue : number;
@@ -74,25 +73,24 @@ export default abstract class Query {
 	protected buildRange() : IDBKeyRange | undefined {
 		let range : IDBKeyRange | undefined = undefined;
 		if (this.bounds.equal) {
-			range = IDBKeyRange.only(this.bounds.equal!.value);
+			range = IDBKeyRange.only(this.bounds.equal.value);
 		}
 		else {
 			if (this.bounds.upper && this.bounds.lower) {
-				range = IDBKeyRange.bound(this.bounds.lower!.value, this.bounds.upper!.value, this.bounds.lower!.open, this.bounds.upper!.open);
+				range = IDBKeyRange.bound(this.bounds.lower.value, this.bounds.upper.value, this.bounds.lower.open, this.bounds.upper.open);
 			}
 			else if (this.bounds.upper) {
-				range = IDBKeyRange.upperBound(this.bounds.upper!.value, this.bounds.upper!.open);
+				range = IDBKeyRange.upperBound(this.bounds.upper.value, this.bounds.upper.open);
 			}
-			else { //this.bounds.lower
-				range = IDBKeyRange.lowerBound(this.bounds.lower!.value, this.bounds.lower!.open);
+			else if (this.bounds.lower) {
+				range = IDBKeyRange.lowerBound(this.bounds.lower.value, this.bounds.lower.open);
 			}
 		}
 
 		return range;
 	}
 
-	protected buildRequest(isKeyCursor : boolean, isCount : boolean) : [IDBRequest,IDBTransaction] {
-		const idbTransaction = this instanceof SelectQuery ? this.store.IdbTranRead : this.store.IdbTranWrite;
+	protected buildRequest(idbTransaction : IDBTransaction, isKeyCursor : boolean, isCount : boolean) : IDBRequest {
 		const idbStore = idbTransaction.objectStore(this.store.Name);
 
 		let range = this.buildRange();
@@ -114,7 +112,7 @@ export default abstract class Query {
 			request = querySource.openCursor(range, <EZDBCursorType>cursorType);
 		}
 
-		return [request, idbTransaction];
+		return request;
 	}
 
 	abstract go() : Promise<any>;
