@@ -74,7 +74,7 @@ export default class Transaction {
 							returnedAffectedRows[tranUnit.dmlType]++;
 						};
 						request.onerror = () => {
-							error = `${request.error.message} Record: ${JSON.stringify(recordOrKey)}`;
+							error = `${request.error.message} Record or key: ${JSON.stringify(recordOrKey)}`;
 						};
 					}
 					catch (e) {
