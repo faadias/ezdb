@@ -11,8 +11,8 @@
   },
   "scripts": {
     "install": "npm install ts-loader webpack typescript --save-dev",
-	"build-test" : "tsc test/test.ts --target es6 && rm src/*.js",
-	"build": "webpack",
+    "build-test": "tsc test/test.ts --target es6 && rm src/*.js",
+    "build": "webpack",
     "watch": "webpack --watch"
   },
   "repository": {

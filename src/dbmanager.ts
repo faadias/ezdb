@@ -41,7 +41,7 @@ export default class DBManager {
 			return database.Closed;
 		}
 
-		throw new EZDBException(`Database ${dbName} could not be found!`);
+		throw new EZDBException({ msg : `Database ${dbName} could not be found!`});
 	}
 
 	open(dbName : string, dbVersion? : number, config? : EZDBDatabaseConfig) {
@@ -66,8 +66,8 @@ export default class DBManager {
 							try {
 								idbDatabase.deleteObjectStore(storeName);
 								continue;
-							} catch (error) {
-								reject(new EZDBException(`${error} Store: ${storeName}`));
+							} catch (e) {
+								reject(new EZDBException({msg : `${e} Store: ${storeName}`}));
 								break;
 							}
 						}
@@ -77,8 +77,8 @@ export default class DBManager {
 					else {
 						try {
 							idbStore = idbDatabase.createObjectStore(storeName, storeConfig && storeConfig.key ? storeConfig.key : undefined);
-						} catch (error) {
-							reject(new EZDBException(`${error} Store: ${storeName}`));
+						} catch (e) {
+							reject(new EZDBException({msg : `${e} Store: ${storeName}`}));
 							break;
 						}
 					}
@@ -115,7 +115,7 @@ export default class DBManager {
 			};
 
 			request.onblocked = () => {
-				return reject(new EZDBException(`Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`));
+				return reject(new EZDBException({msg : `Database ${dbName} is blocked by another connection. Check if it's being used by other browser tabs.`}));
 			};
 		});
 
@@ -128,7 +128,7 @@ export default class DBManager {
 
 		const promise = new Promise<boolean>((resolve, reject) => {
 			if (!database) {
-				reject(new EZDBException(`No database named ${dbName} is currently loaded in EZDB! Can't drop it...`));
+				reject(new EZDBException({msg : `No database named ${dbName} is currently loaded in EZDB! Can't drop it...`}));
 				return;
 			}
 
@@ -142,7 +142,7 @@ export default class DBManager {
 				reject(request.error);
 			};
 			request.onblocked = () => {
-				reject(new EZDBException(`Can't drop database ${dbName} because it's not closed (and might be in use by other browser tabs).`));
+				reject(new EZDBException({msg : `Can't drop database ${dbName} because it's not closed (and might be in use by other browser tabs).`}));
 			};
 		});
 		

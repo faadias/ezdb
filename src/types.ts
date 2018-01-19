@@ -1,4 +1,5 @@
 import Store from "./store";
+import { EZDBUpdateType } from "./enums";
 
 export type EZDBDatabaseConfig = {
 	stores : {
@@ -29,12 +30,18 @@ export type EZDBTransactionDMLType = "ins" | "upd" | "del";
 export type EZDBTransactionUnit = {
 	recordsOrKeys : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>,
 	store : Store,
-	dmlType : EZDBTransactionDMLType
-}
-export type EZDBTransactionReturn = {
-	"ins" : number,
-	"upd" : number,
-	"del" : number
+	dmlType : EZDBTransactionDMLType,
+	updateType? : EZDBUpdateType
+};
+export type EZDBTransactionObject = {
+	idbTransaction : IDBTransaction,
+	errors : Array<EZDBErrorObject>,
+	rejects : Array<Function>,
+	resolves : Array<Function>
+};
+
+export type EZDBErrorObject = {
+	msg? : string
 }
 
 
@@ -42,7 +49,7 @@ export type EZDBCursorType = "next" | "prev" | "nextunique" | "prevunique";
 
 
 export type EZDBPlainKey = number | string | Date;
-export type EZDBKey = EZDBPlainKey | Array<EZDBPlainKey>
+export type EZDBKey = EZDBPlainKey | Array<EZDBPlainKey>;
 
 export type EZDBPlainStorable  = string | number | boolean | symbol | object;
 export type EZDBObjectStorable = { [key:string] : EZDBPlainStorable };
@@ -51,4 +58,4 @@ export type EZDBStorable = EZDBPlainStorable | EZDBObjectStorable;
 export type EZDBKeyValuePair = {
 	key : EZDBPlainKey,
 	value : EZDBPlainStorable
-}
+};

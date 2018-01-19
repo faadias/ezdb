@@ -1,6 +1,6 @@
 import UpdateQuery from "./updatequery";
 import DeleteQuery from "./deletequery";
-import { EZDBStorable, EZDBKeyValuePair, EZDBKey, EZDBDMLType } from "./types";
+import { EZDBStorable, EZDBKeyValuePair, EZDBKey, EZDBDMLType, EZDBTransactionObject } from "./types";
 import { EZDBUpdateType, EZDBTransactionType } from "./enums";
 import SelectQuery from "./selectquery";
 import EZDBException from "./ezdbexception";
@@ -42,7 +42,7 @@ export default abstract class Store {
 	truncate() {
 		const promise = new Promise<void>((resolve, reject) => {
 			if (this.Database.Closed) {
-				reject(new EZDBException(`Database ${this.Database.Name} is already closed! Store ${this.Name} can't be truncated...`));
+				reject(new EZDBException({msg : `Database ${this.Database.Name} is already closed! Store ${this.Name} can't be truncated...`}));
 				return;
 			}
 
@@ -54,10 +54,10 @@ export default abstract class Store {
 				resolve();
 			}
 			idbTransaction.onerror = () => {
-				reject(new EZDBException(`${idbTransaction.error.message} (database ${this.database.Name})!`));
+				reject(new EZDBException({ msg : `${idbTransaction.error.message} (database ${this.database.Name})!`}));
 			}
 			idbTransaction.onabort = () => {
-				reject(new EZDBException(`The truncation of store ${this.Name} (database ${this.Database.Name}) has been aborted!`));
+				reject(new EZDBException({ msg : `The truncation of store ${this.Name} (database ${this.Database.Name}) has been aborted!`}));
 			}
 		});
 		
@@ -66,9 +66,9 @@ export default abstract class Store {
 
 	abstract buildRequest(recordOrKey : EZDBStorable | EZDBKeyValuePair | EZDBKey, idbTransaction : IDBTransaction, type : EZDBDMLType) : IDBRequest;
 
-	abstract insert(records : Array<EZDBStorable | EZDBKeyValuePair>) : Promise<number>;
-	abstract update(records? : Array<EZDBStorable | EZDBKeyValuePair>, type? : EZDBUpdateType) : Promise<number> | UpdateQuery;
-	abstract delete(recordsOrKeys? : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>) : Promise<number> | DeleteQuery;
+	abstract insert(records : Array<EZDBStorable | EZDBKeyValuePair>, tranObject? : EZDBTransactionObject) : Promise<number>;
+	abstract update(records? : Array<EZDBStorable | EZDBKeyValuePair>, type? : EZDBUpdateType, tranObject? : EZDBTransactionObject) : Promise<number> | UpdateQuery;
+	abstract delete(recordsOrKeys? : Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>, tranObject? : EZDBTransactionObject) : Promise<number> | DeleteQuery;
 
 	query() {
 		return new SelectQuery(this);

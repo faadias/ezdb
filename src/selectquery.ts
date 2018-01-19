@@ -1,7 +1,7 @@
 import Query from "./query";
 import Store from "./store";
 import { EZDBQueryReturn } from "./enums";
-import { EZDBStorable, EZDBKeyValuePair, EZDBKey } from "./types";
+import { EZDBStorable, EZDBKeyValuePair, EZDBKey, EZDBErrorObject } from "./types";
 import EZDBException from "./ezdbexception";
 
 export default class SelectQuery extends Query {
@@ -41,11 +41,11 @@ export default class SelectQuery extends Query {
 		let promise = new Promise<Array<EZDBStorable> | Array<EZDBKeyValuePair> | Array<EZDBKey>>((resolve, reject) => {
 			
 			let results = new Array<EZDBStorable | EZDBKeyValuePair | EZDBKey>();
-			let error : string | undefined = undefined;
+			const error : EZDBErrorObject = {};
 
 			const idbTransaction = this.store.IdbTranRead;
 			idbTransaction.oncomplete = () => resolve(results);
-			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
+			idbTransaction.onabort = () => reject(new EZDBException(error));
 			
 
 			try {
@@ -88,18 +88,18 @@ export default class SelectQuery extends Query {
 							cursor.continue();
 						}
 						catch(e) {
-							error = `${e}`;
+							error.msg = `${e}`;
 							idbTransaction.abort();
 						}
 					}
 				}
 
 				request.onerror = () => {
-					error = `${request.error.message}`;
+					error.msg = `${request.error.message}`;
 				}
 			}
 			catch (e) {
-				error = `${e}`;
+				error.msg = `${e}`;
 				idbTransaction.abort();
 			}
 		});
@@ -109,7 +109,7 @@ export default class SelectQuery extends Query {
 
 	count() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
-			let error : string | undefined = undefined;
+			const error : EZDBErrorObject = {};
 			let count : number;
 
 			const idbTransaction = this.store.IdbTranRead;
@@ -119,7 +119,7 @@ export default class SelectQuery extends Query {
 				}
 				resolve(count);
 			}
-			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
+			idbTransaction.onabort = () => reject(new EZDBException(error));
 			
 			try {
 				const request = this.buildRequest(idbTransaction, false, true);
@@ -128,11 +128,11 @@ export default class SelectQuery extends Query {
 					count = request.result;
 				}
 				request.onerror = () => {
-					error = `${request.error.message}`;
+					error.msg = `${request.error.message}`;
 				}
 			}
 			catch (e) {
-				error = `${e}`;
+				error.msg = `${e}`;
 				idbTransaction.abort();
 			}
 		});

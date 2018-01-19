@@ -1,6 +1,6 @@
 import Store from "./store";
 import Database from "./database";
-import { EZDBStorable, EZDBKey, EZDBPlainKey, EZDBKeyValuePair, EZDBDMLType } from "./types";
+import { EZDBStorable, EZDBKey, EZDBPlainKey, EZDBKeyValuePair, EZDBDMLType, EZDBTransactionObject, EZDBErrorObject } from "./types";
 import EZDBException from "./ezdbexception";
 import DBManager from "./dbmanager";
 import { EZDBUpdateType } from "./enums";
@@ -72,24 +72,33 @@ export default class SimpleStore extends Store {
 		return request;
 	}
 
-	insert(records : Array<EZDBStorable | EZDBKeyValuePair>) {
+	insert(records : Array<EZDBStorable | EZDBKeyValuePair>, tranObject? : EZDBTransactionObject) {
 		if (!(records instanceof Array)) records = [records];
 
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
-				reject (new EZDBException(`Database ${this.Database.Name} is already closed! No data can be inserted in store ${this.Name}...`));
+				reject (new EZDBException({msg : `Database ${this.Database.Name} is already closed! No data can be inserted in store ${this.Name}...`}));
 				return;
 			}
 
 			let numberOfAffectedRecords = 0;
-			let error : string | undefined = undefined;
+			const error : EZDBErrorObject = {};
 
-			const idbTransaction = this.IdbTranWrite;
-			idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
-			idbTransaction.onabort = () => reject(new EZDBException(error));
+			let idbTransaction : IDBTransaction;
+			if (tranObject) {
+				idbTransaction = tranObject.idbTransaction;
+				tranObject.resolves.push(() => resolve(numberOfAffectedRecords));
+				tranObject.rejects.push(reject);
+				tranObject.errors.push(error);
+			}
+			else {
+				idbTransaction = this.IdbTranWrite;
+				idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
+				idbTransaction.onabort = () => reject(new EZDBException(error));
+			}
 
 			for (let record of records) {
-				if (error !== undefined) {
+				if (error.msg !== undefined) {
 					break;
 				}
 
@@ -99,11 +108,11 @@ export default class SimpleStore extends Store {
 						numberOfAffectedRecords++;
 					}
 					insertRequest.onerror = () => {
-						error = `${insertRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+						error.msg = `${insertRequest.error.message} Record: ${JSON.stringify(record)} (store: ${this.Name})`;
 						idbTransaction.abort();
 					}
 				} catch (e) {
-					error = `${e} Record: ${JSON.stringify(record)}`;
+					error.msg = `${e} Record: ${JSON.stringify(record)} (store: ${this.Name})`;
 					idbTransaction.abort();
 				}
 			}
@@ -112,29 +121,38 @@ export default class SimpleStore extends Store {
 		return promise;
 	}
 
-	update(records : Array<EZDBStorable | EZDBKeyValuePair>, type? : EZDBUpdateType) {
+	update(records : Array<EZDBStorable | EZDBKeyValuePair>, type? : EZDBUpdateType, tranObject? : EZDBTransactionObject) {
 		if (!(records instanceof Array)) records = [records];
 
 		type = type || DBManager.Instance.DefaultUpdateType;
 
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
-				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be updated in store ${this.Name}...`));
+				reject(new EZDBException({msg : `Database ${this.Database.Name} is already closed! No data can be updated in store ${this.Name}...`}));
 				return;
 			}
 			
 			let numberOfAffectedRecords = 0;
-			let error : string | undefined = undefined;
+			const error : EZDBErrorObject = {};
 
-			const idbTransaction = this.IdbTranWrite;
-			idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
-			idbTransaction.onabort = () => reject(new EZDBException(error));
+			let idbTransaction : IDBTransaction;
+			if (tranObject) {
+				idbTransaction = tranObject.idbTransaction;
+				tranObject.resolves.push(() => resolve(numberOfAffectedRecords));
+				tranObject.rejects.push(reject);
+				tranObject.errors.push(error);
+			}
+			else {
+				idbTransaction = this.IdbTranWrite;
+				idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
+				idbTransaction.onabort = () => reject(new EZDBException(error));
+			}
 			
 			switch(type){
 				case EZDBUpdateType.REPLACE_INSERT:
 				case EZDBUpdateType.UPDATE_INSERT:
 				for (let record of records) {
-					if (error !== undefined) {
+					if (error.msg !== undefined) {
 						break;
 					}
 
@@ -144,10 +162,10 @@ export default class SimpleStore extends Store {
 							numberOfAffectedRecords++;
 						}
 						updateRequest.onerror = () => {
-							error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+							error.msg = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (store: ${this.Name})`;
 						}
 					} catch (e) {
-						error = `${e} Record: ${JSON.stringify(record)}`;
+						error.msg = `${e} Record: ${JSON.stringify(record)} (store: ${this.Name})`;
 						idbTransaction.abort();
 						break;
 					}
@@ -157,7 +175,7 @@ export default class SimpleStore extends Store {
 				case EZDBUpdateType.REPLACE_EXISTING:
 				case EZDBUpdateType.UPDATE_EXISTING:
 				for (let record of records) {
-					if (error !== undefined) {
+					if (error.msg !== undefined) {
 						break;
 					}
 
@@ -173,15 +191,15 @@ export default class SimpleStore extends Store {
 									numberOfAffectedRecords++;
 								}
 								updateRequest.onerror = () => {
-									error = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+									error.msg = `${updateRequest.error.message} Record: ${JSON.stringify(record)} (store: ${this.Name})`;
 								}
 							}
 						}
 						queryRequest.onerror = () => {
-							error = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (${this.Name})`;
+							error.msg = `${queryRequest.error.message} Record: ${JSON.stringify(record)} (store: ${this.Name})`;
 						}
 					} catch (e) {
-						error = `${e} Record: ${JSON.stringify(record)}`;
+						error.msg = `${e} Record: ${JSON.stringify(record)} (store: ${this.Name})`;
 						idbTransaction.abort();
 						break;
 					}
@@ -193,24 +211,33 @@ export default class SimpleStore extends Store {
 		return promise;
 	}
 
-	delete(recordsOrKeys : Array<EZDBKeyValuePair | EZDBPlainKey>) : Promise<number> {
+	delete(recordsOrKeys : Array<EZDBKeyValuePair | EZDBPlainKey>, tranObject? : EZDBTransactionObject) : Promise<number> {
 		if (!(recordsOrKeys instanceof Array)) recordsOrKeys = [recordsOrKeys];
 
 		const promise = new Promise<number>((resolve, reject) => {
 			if (this.Database.Closed) {
-				reject(new EZDBException(`Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`));
+				reject(new EZDBException({msg : `Database ${this.Database.Name} is already closed! No data can be deleted in store ${this.Name}...`}));
 				return;
 			}
 			
 			let numberOfAffectedRecords = 0;
-			let error : string | undefined = undefined;
+			const error : EZDBErrorObject = {};
 
-			const idbTransaction = this.IdbTranWrite;
-			idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
-			idbTransaction.onabort = () => reject(new EZDBException(error));
+			let idbTransaction : IDBTransaction;
+			if (tranObject) {
+				idbTransaction = tranObject.idbTransaction;
+				tranObject.resolves.push(() => resolve(numberOfAffectedRecords));
+				tranObject.rejects.push(reject);
+				tranObject.errors.push(error);
+			}
+			else {
+				idbTransaction = this.IdbTranWrite;
+				idbTransaction.oncomplete = () => resolve(numberOfAffectedRecords);
+				idbTransaction.onabort = () => reject(new EZDBException(error));
+			}
 
 			for (let recordOrKey of recordsOrKeys) {
-				if (error !== undefined) {
+				if (error.msg !== undefined) {
 					break;
 				}
 
@@ -224,15 +251,15 @@ export default class SimpleStore extends Store {
 								numberOfAffectedRecords++;
 							}
 							deleteRequest.onerror = () => {
-								error = `${deleteRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
+								error.msg = `${deleteRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (store: ${this.Name})`;
 							}
 						}
 					}
 					queryRequest.onerror = () => {
-						error = `${queryRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (${this.Name})`;
+						error.msg = `${queryRequest.error.message} Record: ${JSON.stringify(recordOrKey)} (store: ${this.Name})`;
 					}
 				} catch (e) {
-					error = `${e} Record: ${JSON.stringify(recordOrKey)}`;
+					error.msg = `${e} Record: ${JSON.stringify(recordOrKey)} (store: ${this.Name})`;
 					idbTransaction.abort();
 					break;
 				}

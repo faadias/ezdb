@@ -1,5 +1,7 @@
+import { EZDBErrorObject } from "./types";
+
 export default class EZDBException extends DOMException {
-	constructor(message? : string) {
-		super(message, "EZDBException");
+	constructor(error : EZDBErrorObject) {
+		super(error.msg, "EZDBException");
 	}
 }

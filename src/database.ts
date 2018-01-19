@@ -51,7 +51,7 @@ export default class Database {
 
 	store(storeName : string) : Store {
 		if (!this.stores.has(storeName)) {
-			throw new EZDBException(`Store ${storeName} doesn't exist in database ${this.Name}!`);
+			throw new EZDBException({msg : `Store ${storeName} doesn't exist in database ${this.Name}!`});
 		}
 
 		return this.stores.get(storeName)!;
@@ -69,7 +69,7 @@ export default class Database {
 
 	begintran() {
 		if (this.closed) {
-			throw new EZDBException(`Can't start a transaction in database ${this.Name} because it's already closed!`);
+			throw new EZDBException({msg : `Can't start a transaction in database ${this.Name} because it's already closed!`});
 		}
 
 		return new Transaction(this);

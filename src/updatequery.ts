@@ -1,6 +1,6 @@
 import Query from "./query";
 import Store from "./store";
-import { EZDBObjectStorable } from "./types";
+import { EZDBObjectStorable, EZDBErrorObject } from "./types";
 import EZDBException from "./ezdbexception";
 
 export default class UpdateQuery extends Query {
@@ -17,7 +17,7 @@ export default class UpdateQuery extends Query {
 
 	go() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
-			let error : string | undefined = undefined;
+			const error : EZDBErrorObject = {};
 			let affectedRows = 0;
 
 			if (!this.setter) {
@@ -27,7 +27,7 @@ export default class UpdateQuery extends Query {
 
 			const idbTransaction = this.store.IdbTranWrite;
 			idbTransaction.oncomplete = () => resolve(affectedRows);
-			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
+			idbTransaction.onabort = () => reject(new EZDBException(error));
 
 			try {
 				const request = this.buildRequest(idbTransaction, false, false);
@@ -52,18 +52,18 @@ export default class UpdateQuery extends Query {
 							affectedRows++;
 						}
 						catch (e) {
-							error = `${e} Record: ${JSON.stringify(record)} (store: ${this.store.Name})`;
+							error.msg = `${e} Record: ${JSON.stringify(record)} (store: ${this.store.Name})`;
 							idbTransaction.abort();
 						}
 					}
 				}
 
 				request.onerror = () => {
-					error = `${request.error.message}`;
+					error.msg = `${request.error.message}`;
 				}
 			}
 			catch (e) {
-				error = `${e}`;
+				error.msg = `${e}`;
 				idbTransaction.abort();
 			}
 		});

@@ -1,6 +1,7 @@
 import Query from "./query";
 import Store from "./store";
 import EZDBException from "./ezdbexception";
+import { EZDBErrorObject } from "./types";
 
 export default class DeleteQuery extends Query {
 	constructor(store : Store) {
@@ -9,13 +10,13 @@ export default class DeleteQuery extends Query {
 
 	go() : Promise<number> {
 		let promise = new Promise<number>((resolve, reject) => {
-			let error : string | undefined = undefined;
+			const error : EZDBErrorObject = {};
 			let affectedRows = 0;
 
 
 			const idbTransaction = this.store.IdbTranWrite;
 			idbTransaction.oncomplete = () => resolve(affectedRows);
-			idbTransaction.onabort = () => reject(new EZDBException(`${error}`));
+			idbTransaction.onabort = () => reject(new EZDBException(error));
 
 
 			try {
@@ -33,18 +34,18 @@ export default class DeleteQuery extends Query {
 							affectedRows++;
 						}
 						catch (e) {
-							error = `${e} Record: ${JSON.stringify(primaryKey)} (store: ${this.store.Name})`;
+							error.msg = `${e} Record: ${JSON.stringify(primaryKey)} (store: ${this.store.Name})`;
 							idbTransaction.abort();
 						}
 					}
 				}
 
 				request.onerror = () => {
-					error = `${request.error.message}`;
+					error.msg = `${request.error.message}`;
 				}
 			}
 			catch (e) {
-				error = `${e}`;
+				error.msg = `${e}`;
 				idbTransaction.abort();
 			}
 		});
