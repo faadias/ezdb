@@ -24,6 +24,10 @@ export default class DBManager {
 		return this.dbs.get(dbName);
 	}
 
+	get Loaded() {
+		return true;
+	}
+	
 	get DefaultUpdateType(){
 		return this.defaultUpdateType;
 	}

@@ -132,6 +132,9 @@ class DBManager {
     get(dbName) {
         return this.dbs.get(dbName);
     }
+    get Loaded() {
+        return true;
+    }
     get DefaultUpdateType() {
         return this.defaultUpdateType;
     }
@@ -411,7 +414,9 @@ const dbmanager_1 = __webpack_require__(2);
 const enums_1 = __webpack_require__(1);
 (function () {
     if (!this.indexedDB) {
-        console.log("IndexedDB not supported!");
+        this.ezdb = {
+            get Loaded() { return false; }
+        };
         return;
     }
     this.ezdb = dbmanager_1.default.Instance;

@@ -3,7 +3,9 @@ import { EZDBUpdateType, EZDBQueryReturn } from "./enums";
 
 (function(){
 	if (!this.indexedDB) {
-		console.log("IndexedDB not supported!");
+		this.ezdb = {
+			get Loaded() { return false; }
+		};
 		return;
 	}
 
